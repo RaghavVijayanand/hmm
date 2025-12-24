@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>kmeans.c — Method Overview</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .method { background:#e6f2ff; padding:12px; border-left:4px solid #0366d6; margin:12px 0; }
+    .method-name { font-family:monospace; font-weight:bold; color:#0366d6; }
+    .method-purpose { font-weight:bold; margin:6px 0 0 0; }
+    .method-detail { margin:6px 0 0 0; line-height:1.6; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`kmeans.c` — Method Overview</h1>
+  <p class="note">This file implements the K-means clustering algorithm to build a codebook of 100 representative MFCC vectors. Here's what each method does.</p>
+
+  <h2>Data Structures</h2>
+
+  <div class="method">
+    <span class="method-name">struct Vector</span>
+    <p class="method-purpose">Represents one MFCC frame (39-dimensional vector).</p>
+    <p class="method-detail"><code>x[DIM]</code> holds 39 floating-point values—13 base MFCC coefficients + 13 deltas + 13 delta-deltas. These are the "features" that represent audio at one moment in time.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">struct Cluster</span>
+    <p class="method-purpose">Represents one cluster in K-means.</p>
+    <p class="method-detail"><code>centroid</code> = the representative (mean) vector for this cluster. <code>count</code> = number of points assigned to this cluster in the current iteration. Used to organize MFCC vectors into K=100 groups.</p>
+  </div>
+
+  <h2>Core Methods</h2>
+
+  <div class="method">
+    <span class="method-name">double squared_distance(Vector a, Vector b)</span>
+    <p class="method-purpose">Compute the squared Euclidean distance between two MFCC vectors.</p>
+    <p class="method-detail">Sums the squared differences across all 39 dimensions. Returns the squared distance (not square root, for speed). Used to determine which cluster a point is closest to. Identical vectors have distance 0; very different vectors have large distances.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">void initialize_clusters(Vector *data, Cluster *clusters)</span>
+    <p class="method-purpose">Set initial cluster centroids.</p>
+    <p class="method-detail">Simple initialization: takes the first K (100) data points as the initial centroids. This is a quick but arbitrary choice. More sophisticated seeding (e.g., K-means++) can help avoid bad local optima, but this works for speech data. Resets count to 0 for all clusters.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">double kmeans_iteration(Vector *data, int N, Cluster *clusters)</span>
+    <p class="method-purpose">Perform one iteration of K-means: assign points to nearest centroid, update centroids.</p>
+    <p class="method-detail"><b>Assignment step:</b> For each of the N data points, find the nearest cluster centroid (using squared_distance). Accumulate points and their sums for each cluster. <b>Update step:</b> Compute new centroid for each cluster by averaging the assigned points. Return the sum of centroid movements (error metric). <b>Why this works:</b> Assignment minimizes distance within clusters; updating minimizes error given assignments. Alternating these steps converges to a local optimum.</p>
+  </div>
+
+  <h2>High-Level Algorithm Flow</h2>
+
+  <div class="concept">
+    <b>Goal:</b> Partition ~10,000 MFCC vectors into 100 clusters so that each cluster's centroid is a representative "sound segment."
+    <br><br>
+    <b>K-means iterations:</b> Each iteration:
+    <ol>
+      <li>Assign each point to the nearest centroid.</li>
+      <li>Recalculate each centroid as the mean of assigned points.</li>
+      <li>If centroids barely moved (error below threshold), stop—converged.</li>
+      <li>Otherwise, repeat.</li>
+    </ol>
+    <br>
+    <b>Convergence:</b> The algorithm is guaranteed to eventually converge. Typically converges in 20–50 iterations for this data size.
+  </div>
+
+  <h2>Why This Matters for the Project</h2>
+
+  <div class="concept">
+    <b>MFCC to codebook:</b> MFCC vectors are continuous (floating-point). HMMs work better with discrete symbols. K-means produces K=100 centroids; any new MFCC frame maps to its nearest centroid index (0–99). This "quantization" is the key step connecting audio features to HMM observations.
+    <br><br>
+    <b>Codebook quality:</b> A good codebook captures the acoustic diversity of the data. If clusters are too coarse, you lose information. If too fine, you overfit. K=100 is a reasonable balance for digit recognition.
+    <br><br>
+    <b>Output:</b> The final 100 centroids are saved to `codebook.txt`. Later, `vq_batch.c` uses this codebook to convert all audio into discrete symbol sequences.
+  </div>
+
+  <div class="footer">For deeper learning, see <a href="fundamentals.html">Fundamentals</a> on VQ and codebook concepts.</div>
+</div>
+</body>
+</html>

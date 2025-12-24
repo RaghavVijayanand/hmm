@@ -1,0 +1,172 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>vq_batch.c — Annotated</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`vq_batch.c` — Annotated</h1>
+  <p class="note">Converts MFCC files into discrete symbol sequences using a provided `codebook.txt`. Produces `hmm/` sequences for training/testing.</p>
+
+  <table class="code-table">
+    <tr><td class="lineno">1</td><td class="code">#include &lt;stdio.h&gt;</td><td class="explain">Standard I/O functions (file operations, printf).</td></tr>
+    <tr><td class="lineno">2</td><td class="code">#include &lt;stdlib.h&gt;</td><td class="explain">Standard library utilities (exit, malloc if needed).</td></tr>
+    <tr><td class="lineno">3</td><td class="code">#include &lt;string.h&gt;</td><td class="explain">String helpers like `strstr` used for class extraction from filenames.</td></tr>
+    <tr><td class="lineno">4</td><td class="code">#include &lt;dirent.h&gt;</td><td class="explain">Directory traversal using `opendir`, `readdir` (POSIX API used here).</td></tr>
+    <tr><td class="lineno">5</td><td class="code">#include &lt;math.h&gt;</td><td class="explain">Math functions (e.g., `sqrt` not used but present for completeness).</td></tr>
+    <tr><td class="lineno">6</td><td class="code">#include &lt;sys/stat.h&gt;</td><td class="explain">Used for `mkdir` and file/directory modes (platform dependent).</td></tr>
+    <tr><td class="lineno">7</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">8</td><td class="code">#define DIM 39</td><td class="explain">Feature vector dimension expected in MFCC files.</td></tr>
+    <tr><td class="lineno">9</td><td class="code">#define K 32</td><td class="explain">Codebook size used for VQ mapping (32 symbols).</td></tr>
+    <tr><td class="lineno">10</td><td class="code">#define MAX_PATH 1024</td><td class="explain">Buffer length for file path operations.</td></tr>
+    <tr><td class="lineno">11</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">12</td><td class="code">typedef struct {</td><td class="explain">Vector type definition used here too (local to this file).</td></tr>
+    <tr><td class="lineno">13</td><td class="code">    double x[DIM];</td><td class="explain">Per-dimension MFCC values.</td></tr>
+    <tr><td class="lineno">14</td><td class="code">} Vector;</td><td class="explain"></td></tr>
+    <tr><td class="lineno">15</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">16</td><td class="code">Vector codebook[K];</td><td class="explain">Global array holding the codebook vectors loaded from `codebook.txt`.</td></tr>
+    <tr><td class="lineno">17</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">18</td><td class="code">// ---------------- Codebook ----------------</td><td class="explain">Functions to load the codebook file into memory.</td></tr>
+    <tr><td class="lineno">19</td><td class="code">void load_codebook(const char *filename)</td><td class="explain">Open and read `filename` expecting `K * DIM` floating values.</td></tr>
+    <tr><td class="lineno">20</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">21</td><td class="code">    FILE *fp = fopen(filename, "r");</td><td class="explain">Open file for reading; error handling below.</td></tr>
+    <tr><td class="lineno">22</td><td class="code">    if (!fp)</td><td class="explain">If unable to open, print message and exit the program as codebook is required.</td></tr>
+    <tr><td class="lineno">23</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">24</td><td class="code">        printf("Cannot open codebook\n");</td><td class="explain">Error log to console.</td></tr>
+    <tr><td class="lineno">25</td><td class="code">        exit(1);</td><td class="explain">Exit with failure code since VQ can't proceed without codebook.</td></tr>
+    <tr><td class="lineno">26</td><td class="code">    }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">27</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">28</td><td class="code">    for (int k = 0; k &lt; K; k++)</td><td class="explain">Read each codebook vector sequentially into `codebook[k]`.</td></tr>
+    <tr><td class="lineno">29</td><td class="code">        for (int d = 0; d &lt; DIM; d++)</td><td class="explain">Inner loop to read `DIM` doubles per codebook vector.</td></tr>
+    <tr><td class="lineno">30</td><td class="code">            fscanf(fp, "%lf", &codebook[k].x[d]);</td><td class="explain">Read one double into codebook array; assumes file formatted correctly.</td></tr>
+    <tr><td class="lineno">31</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">32</td><td class="code">    fclose(fp);</td><td class="explain">Close the codebook file when finished reading.</td></tr>
+    <tr><td class="lineno">33</td><td class="code">}</td><td class="explain">End `load_codebook`.</td></tr>
+    <tr><td class="lineno">34</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">35</td><td class="code">// ---------------- Distance ----------------</td><td class="explain">Squared Euclidean distance function used by VQ mapping.</td></tr>
+    <tr><td class="lineno">36</td><td class="code">double squared_distance(Vector a, Vector b)</td><td class="explain">Same logic as other squared distance implementations: faster than `sqrt` since we compare squared distances.</td></tr>
+    <tr><td class="lineno">37</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">38</td><td class="code">    double sum = 0.0;</td><td class="explain">Initialize sum of squared differences.</td></tr>
+    <tr><td class="lineno">39</td><td class="code">    for (int i = 0; i &lt; DIM; i++)</td><td class="explain">Loop each feature dimension.</td></tr>
+    <tr><td class="lineno">40</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">41</td><td class="code">        double diff = a.x[i] - b.x[i];</td><td class="explain">Compute per-dimension difference.</td></tr>
+    <tr><td class="lineno">42</td><td class="code">        sum += diff * diff;</td><td class="explain">Accumulate squared difference.</td></tr>
+    <tr><td class="lineno">43</td><td class="code">    }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">44</td><td class="code">    return sum;</td><td class="explain">Return squared distance.</td></tr>
+    <tr><td class="lineno">45</td><td class="code">}</td><td class="explain">End distance function.</td></tr>
+    <tr><td class="lineno">46</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">47</td><td class="code">// ---------------- VQ ----------------</td><td class="explain">Map a single frame to its nearest codebook symbol index.</td></tr>
+    <tr><td class="lineno">48</td><td class="code">int vq_map(Vector frame)</td><td class="explain">Return the index of the closest `codebook` vector to `frame`.</td></tr>
+    <tr><td class="lineno">49</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">50</td><td class="code">    int best = 0;</td><td class="explain">Start with index 0 as best.</td></tr>
+    <tr><td class="lineno">51</td><td class="code">    double best_dist = squared_distance(frame, codebook[0]);</td><td class="explain">Baseline squared distance to codebook[0].</td></tr>
+    <tr><td class="lineno">52</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">53</td><td class="code">    for (int k = 1; k &lt; K; k++)</td><td class="explain">Loop remaining codebook entries to find closer one.</td></tr>
+    <tr><td class="lineno">54</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">55</td><td class="code">        double d = squared_distance(frame, codebook[k]);</td><td class="explain">Distance to current codebook vector.</td></tr>
+    <tr><td class="lineno">56</td><td class="code">        if (d &lt; best_dist)</td><td class="explain">If closer, update best index and best distance.</td></tr>
+    <tr><td class="lineno">57</td><td class="code">        {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">58</td><td class="code">            best_dist = d;</td><td class="explain">Record new best distance.</td></tr>
+    <tr><td class="lineno">59</td><td class="code">            best = k;</td><td class="explain">Record new best index.</td></tr>
+    <tr><td class="lineno">60</td><td class="code">        }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">61</td><td class="code">    }</td><td class="explain">End loop.</td></tr>
+    <tr><td class="lineno">62</td><td class="code">    return best;</td><td class="explain">Return nearest codebook index.</td></tr>
+    <tr><td class="lineno">63</td><td class="code">}</td><td class="explain">End `vq_map`.</td></tr>
+    <tr><td class="lineno">64</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">65</td><td class="code">// ---------------- Class from filename ----------------</td><td class="explain">Helper that extracts digit class from filename by substring search.</td></tr>
+    <tr><td class="lineno">66</td><td class="code">int get_class_from_name(const char *name)</td><td class="explain">Return digit (2..5) if present in filename, otherwise -1.</td></tr>
+    <tr><td class="lineno">67</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">68</td><td class="code">    if (strstr(name, "2")) return 2;</td><td class="explain">If '2' substring found, returns 2 (simple heuristic).</td></tr>
+    <tr><td class="lineno">69</td><td class="code">    if (strstr(name, "3")) return 3;</td><td class="explain">Ditto for 3.</td></tr>
+    <tr><td class="lineno">70</td><td class="code">    if (strstr(name, "4")) return 4;</td><td class="explain">Ditto for 4.</td></tr>
+    <tr><td class="lineno">71</td><td class="code">    if (strstr(name, "5")) return 5;</td><td class="explain">Ditto for 5.</td></tr>
+    <tr><td class="lineno">72</td><td class="code">    return -1;</td><td class="explain">If none found, return -1 (file not part of digits 2-5 dataset).</td></tr>
+    <tr><td class="lineno">73</td><td class="code">}</td><td class="explain">End helper.</td></tr>
+    <tr><td class="lineno">74</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">75</td><td class="code">// ---------------- Process folder ----------------</td><td class="explain">Walk a directory of MFCC files and append symbol sequences into `hmm/<class>/<split>.seq` files.</td></tr>
+    <tr><td class="lineno">76</td><td class="code">void process_folder(const char *mfcc_dir, const char *split)</td><td class="explain">`split` is either `train` or `dev` used to name output files.</td></tr>
+    <tr><td class="lineno">77</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">78</td><td class="code">    DIR *dir = opendir(mfcc_dir);</td><td class="explain">Open directory for reading entries.</td></tr>
+    <tr><td class="lineno">79</td><td class="code">    struct dirent *entry;</td><td class="explain">Directory entry pointer type used by `readdir`.</td></tr>
+    <tr><td class="lineno">80</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">81</td><td class="code">    if (!dir)</td><td class="explain">If directory cannot be opened, print error and return.</td></tr>
+    <tr><td class="lineno">82</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">83</td><td class="code">        printf("Cannot open %s\n", mfcc_dir);</td><td class="explain">Error message includes the folder path.</td></tr>
+    <tr><td class="lineno">84</td><td class="code">        return;</td><td class="explain">Return early; caller continues.</td></tr>
+    <tr><td class="lineno">85</td><td class="code">    }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">86</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">87</td><td class="code">    while ((entry = readdir(dir)) != NULL)</td><td class="explain">Iterate directory entries until none remain.</td></tr>
+    <tr><td class="lineno">88</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">89</td><td class="code">        if (entry->d_name[0] == '.') continue;</td><td class="explain">Skip hidden entries like `.` and `..`.</td></tr>
+    <tr><td class="lineno">90</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">91</td><td class="code">        int cls = get_class_from_name(entry->d_name);</td><td class="explain">Get digit class using filename heuristics.</td></tr>
+    <tr><td class="lineno">92</td><td class="code">        if (cls == -1) continue;</td><td class="explain">Skip files that don't match dataset labeling scheme.</td></tr>
+    <tr><td class="lineno">93</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">94</td><td class="code">        char mfcc_path[MAX_PATH];</td><td class="explain">Local buffer to hold full path to input MFCC file.</td></tr>
+    <tr><td class="lineno">95</td><td class="code">        snprintf(mfcc_path, sizeof(mfcc_path),</td><td class="explain">Compose the full path to the MFCC file by joining directory and filename.</td></tr>
+    <tr><td class="lineno">96</td><td class="code">                 "%s/%s", mfcc_dir, entry->d_name);</td><td class="explain"></td></tr>
+    <tr><td class="lineno">97</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">98</td><td class="code">        char out_path[MAX_PATH];</td><td class="explain">Output path buffer for `hmm/<class>/<split>.seq` file.</td></tr>
+    <tr><td class="lineno">99</td><td class="code">        snprintf(out_path, sizeof(out_path),</td><td class="explain">Construct out_path string accordingly.</td></tr>
+    <tr><td class="lineno">100</td><td class="code">                 "hmm/%d/%s.seq", cls, split);</td><td class="explain"></td></tr>
+    <tr><td class="lineno">101</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">102</td><td class="code">        FILE *in = fopen(mfcc_path, "r");</td><td class="explain">Open input MFCC file for reading.</td></tr>
+    <tr><td class="lineno">103</td><td class="code">        FILE *out = fopen(out_path, "a");</td><td class="explain">Open output sequence file for appending (so multiple input files add lines).</td></tr>
+    <tr><td class="lineno">104</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">105</td><td class="code">        if (!in || !out)</td><td class="explain">If either file cannot be opened, log and skip this file.</td></tr>
+    <tr><td class="lineno">106</td><td class="code">        {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">107</td><td class="code">            printf("File error: %s\n", entry->d_name);</td><td class="explain">Print the name of the file that caused an error.</td></tr>
+    <tr><td class="lineno">108</td><td class="code">            continue;</td><td class="explain">Skip to next directory entry.</td></tr>
+    <tr><td class="lineno">109</td><td class="code">        }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">110</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">111</td><td class="code">        Vector frame;</td><td class="explain">Temporary buffer to read one MFCC frame from file.</td></tr>
+    <tr><td class="lineno">112</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">113</td><td class="code">        while (1)</td><td class="explain">Loop reading frames until EOF is reached (handled inside).</td></tr>
+    <tr><td class="lineno">114</td><td class="code">        {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">115</td><td class="code">            for (int d = 0; d &lt; DIM; d++)</td><td class="explain">Read one frame's worth of `DIM` doubles.</td></tr>
+    <tr><td class="lineno">116</td><td class="code">            {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">117</td><td class="code">                if (fscanf(in, "%lf", &frame.x[d]) != 1)</td><td class="explain">If a value cannot be read (EOF), write newline to output and close files for this input.</td></tr>
+    <tr><td class="lineno">118</td><td class="code">                {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">119</td><td class="code">                    fprintf(out, "\n");</td><td class="explain">Write a newline to mark the end of this sequence in the output file.</td></tr>
+    <tr><td class="lineno">120</td><td class="code">                    fclose(in);</td><td class="explain">Close input file.</td></tr>
+    <tr><td class="lineno">121</td><td class="code">                    fclose(out);</td><td class="explain">Close output file.</td></tr>
+    <tr><td class="lineno">122</td><td class="code">                    goto next_file;</td><td class="explain">Jump to label `next_file` to continue outer directory loop cleanly.</td></tr>
+    <tr><td class="lineno">123</td><td class="code">                }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">124</td><td class="code">            }</td><td class="explain">End per-frame read loop for current frame.</td></tr>
+    <tr><td class="lineno">125</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">126</td><td class="code">            int symbol = vq_map(frame);</td><td class="explain">Map the MFCC `frame` to a discrete codebook symbol using VQ.</td></tr>
+    <tr><td class="lineno">127</td><td class="code">            fprintf(out, "%d ", symbol);</td><td class="explain">Append the symbol (and a space) to the output sequence file.</td></tr>
+    <tr><td class="lineno">128</td><td class="code">        }</td><td class="explain">End while reading frames for this input file.</td></tr>
+    <tr><td class="lineno">129</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">130</td><td class="code">    next_file:</td><td class="explain">Label to continue outer loop cleanly after file processing or EOF.</td></tr>
+    <tr><td class="lineno">131</td><td class="code">        ;</td><td class="explain">Empty statement to satisfy C syntax after label.</td></tr>
+    <tr><td class="lineno">132</td><td class="code">    }</td><td class="explain">End directory entry loop.</td></tr>
+    <tr><td class="lineno">133</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">134</td><td class="code">    closedir(dir);</td><td class="explain">Close directory handle after processing all files.</td></tr>
+    <tr><td class="lineno">135</td><td class="code">}</td><td class="explain">End `process_folder` function.</td></tr>
+    <tr><td class="lineno">136</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">137</td><td class="code">// ---------------- Main ----------------</td><td class="explain">Main program to run VQ-batching over train/dev directories.</td></tr>
+    <tr><td class="lineno">138</td><td class="code">int main()</td><td class="explain">Entry point for VQ batching utility.</td></tr>
+    <tr><td class="lineno">139</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">140</td><td class="code">    load_codebook("codebook.txt");</td><td class="explain">Load the codebook from the repository file `codebook.txt`.</td></tr>
+    <tr><td class="lineno">141</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">142</td><td class="code">    // create folders</td><td class="explain">Make `hmm` directories if they do not already exist (permissions 0777 passed here).</td></tr>
+    <tr><td class="lineno">143</td><td class="code">    mkdir("hmm", 0777);</td><td class="explain">Create top-level `hmm` directory.</td></tr>
+    <tr><td class="lineno">144</td><td class="code">    mkdir("hmm/2", 0777);</td><td class="explain">Create class directories for digits 2–5.</td></tr>
+    <tr><td class="lineno">145</td><td class="code">    mkdir("hmm/3", 0777);</td><td class="explain"></td></tr>
+    <tr><td class="lineno">146</td><td class="code">    mkdir("hmm/4", 0777);</td><td class="explain"></td></tr>
+    <tr><td class="lineno">147</td><td class="code">    mkdir("hmm/5", 0777);</td><td class="explain"></td></tr>
+    <tr><td class="lineno">148</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">149</td><td class="code">    process_folder("../../audios/combined_train", "train");</td><td class="explain">Process training MFCC files from provided relative path; edit path as needed for your setup.</td></tr>
+    <tr><td class="lineno">150</td><td class="code">process_folder("../../audios/combined_dev", "dev");</td><td class="explain">Process dev set files similarly — note this line has no indentation in original file but functions identically.</td></tr>
+    <tr><td class="lineno">151</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">152</td><td class="code">    printf("VQ batching done. Sequences written to hmm/\n");</td><td class="explain">Log completion message to console.</td></tr>
+    <tr><td class="lineno">153</td><td class="code">    return 0;</td><td class="explain">Exit with success status.</td></tr>
+    <tr><td class="lineno">154</td><td class="code">}</td><td class="explain">End `main`.</td></tr>
+  </table>
+</div>
+</body>
+</html>

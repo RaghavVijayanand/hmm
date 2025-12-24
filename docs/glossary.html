@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Glossary — HMM Assignment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .term { margin-top:12px; }
+    .term-name { font-weight:bold; color:#0366d6; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Glossary</h1>
+  <p class="note">Quick definitions of terms used throughout the project and code.</p>
+
+  <div class="term">
+    <div class="term-name">Accuracy</div>
+    <p>Percentage of test samples correctly classified. In this project: (# correct predictions) / (total test samples) × 100%.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Baum–Welch Algorithm</div>
+    <p>An EM (Expectation-Maximization) algorithm to estimate HMM parameters (A, B, π) from training sequences. Iteratively computes expected state occupancy and transitions, then updates parameters.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Centroid</div>
+    <p>The center of a cluster in K-means. All data points in a cluster are closer to their centroid than to any other centroid.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Cluster</div>
+    <p>A group of similar data points. K-means divides data into K clusters, each with a centroid.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Codebook</div>
+    <p>A set of representative vectors (K=100 in this project). Each MFCC frame is mapped to its nearest codebook vector's index (a discrete symbol 0–99).</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Convergence</div>
+    <p>When an iterative algorithm (K-means, Baum–Welch) stops improving significantly. In code: error drops below a threshold (EPS).</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Discrete Symbol</div>
+    <p>An integer in a finite set, e.g., 0–31 or 0–99. Opposite of continuous (like a real number).</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Emission Probability (B matrix)</div>
+    <p>B[state, symbol] = probability of observing `symbol` given you're in `state`. Stored as B[N][M] matrix where N=#states, M=#symbols.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Forward Algorithm</div>
+    <p>A dynamic programming algorithm to compute the probability of an observation sequence given an HMM. Used for classification: score a sequence under each HMM and pick the max.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Hidden States</div>
+    <p>Internal states of an HMM that you don't directly observe. Only symbols are observed. N=5 states in this project, modeling different phases of speaking a digit.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">HMM (Hidden Markov Model)</div>
+    <p>A probabilistic model for sequences. Parameters: transition matrix A, emission matrix B, initial distribution π. Used for sequence modeling and classification.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">K-means</div>
+    <p>An unsupervised clustering algorithm. Partitions N data points into K clusters by iteratively assigning points to nearest centroid and updating centroids.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Log-probability</div>
+    <p>log(P(sequence | HMM)). Used instead of raw probability to avoid numerical underflow (products of small probabilities). Higher log-prob = better match.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">MFCC (Mel-Frequency Cepstral Coefficients)</div>
+    <p>Acoustic features extracted from audio. ~39-dimensional vector per ~10ms frame. Captures spectral content the way humans hear.</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Transition Probability (A matrix)</div>
+    <p>A[from_state, to_state] = probability of moving from one state to another. Stored as A[N][N] matrix. Often constrained (e.g., left-to-right: only self or next state).</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Vector Quantization (VQ)</div>
+    <p>Mapping a continuous vector to the index of the nearest codebook vector. Converts MFCC frames (continuous, 39-D) to discrete symbols (0–99).</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Viterbi Algorithm</div>
+    <p>Finds the most likely sequence of hidden states given observations. NOT used in this code, but related to HMMs. (The code uses forward algorithm for classification, not Viterbi.)</p>
+  </div>
+
+  <div class="term">
+    <div class="term-name">Squared Distance</div>
+    <p>||a - b||² = Σ(a_i - b_i)². Used for nearest-neighbor search in K-means and VQ. Faster than actual Euclidean distance (√||a-b||²) since sqrt is monotonic.</p>
+  </div>
+
+  <div class="footer"><a href="fundamentals.html">Back to Fundamentals</a></div>
+</div>
+</body>
+</html>

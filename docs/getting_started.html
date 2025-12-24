@@ -1,0 +1,162 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Getting Started — HMM Assignment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .step { background:#f0f9ff; padding:12px; margin:12px 0; border-left:4px solid #0284c7; }
+    .step-title { font-weight:bold; color:#0284c7; font-size:1.1em; }
+    .prereq { background:#fef3c7; padding:8px; margin:6px 0; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Getting Started</h1>
+  <p class="note">New to this project? Start here. This page guides you through the learning path step-by-step.</p>
+
+  <h2>Learning Path</h2>
+  <p>Follow this order for best understanding:</p>
+
+  <div class="step">
+    <div class="step-title">Step 1: Understand the Problem</div>
+    <p>Read <a href="fundamentals.html">Fundamentals</a> (5 min). You'll learn:</p>
+    <ul>
+      <li>What is speech recognition and digit classification?</li>
+      <li>High-level overview of MFCC, K-means, VQ, HMM.</li>
+      <li>How all pieces fit together.</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 2: Why These Parameters?</div>
+    <p><b>⭐ NEW & IMPORTANT:</b> Read <a href="parameters.html">Parameters Explained</a> (8 min). You'll understand:</p>
+    <ul>
+      <li><b>Why DIM=39?</b> (MFCC standard: 13 + 13 delta + 13 delta-delta)</li>
+      <li><b>Why N=5 states?</b> (phonetic phases in digit utterance)</li>
+      <li><b>Why K=100 (kmeans) vs K=32 (final)?</b> (codebook design tradeoff)</li>
+      <li><b>Why M=32 symbols?</b> (balance quantization detail vs overfitting)</li>
+      <li><b>Why iterations=15?</b> (empirical convergence for digit HMM)</li>
+      <li><b>Why EPS=1e-4?</b> (K-means convergence threshold)</li>
+    </ul>
+    <p class="prereq"><b>This is tailored to YOUR code</b> — not generic HMM. See exact values from kmeans.c, vq_batch.c, hmm.c.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 3: Unfamiliar Terms?</div>
+    <p>Refer to <a href="glossary.html">Glossary</a> (2 min). Defines every term used in code and docs.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 4: High-level Project Structure</div>
+    <p>Read <a href="overview.html">Project Overview</a> (3 min). Describes:</p>
+    <ul>
+      <li>Files in the repo.</li>
+      <li>What each C file does.</li>
+      <li>Data flow (MFCC → K-means → VQ → HMM).</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 5: Hands-on Commands</div>
+    <p>Follow <a href="tutorial.html">Step-by-step Tutorial</a> (10 min). You'll learn:</p>
+    <ul>
+      <li>Prerequisites (C compiler, Python).</li>
+      <li>Exact commands to compile and run each program.</li>
+      <li>Windows/WSL notes.</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 6: Code Deep Dive</div>
+    <p>Read source code line-by-line:</p>
+    <ul>
+      <li><a href="kmeans_c.html">kmeans.c</a> — clustering algorithm.</li>
+      <li><a href="vq_batch_c.html">vq_batch.c</a> — maps MFCC to symbols.</li>
+      <li><a href="hmm_c.html">hmm.c</a> — HMM training and testing (most complex).</li>
+    </ul>
+    <p>Read headers too: <a href="kmeans_h.html">kmeans.h</a>, <a href="hmm_h.html">hmm.h</a>.</p>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 7: Math Details (Optional)</div>
+    <p>If you want to understand the math behind forward algorithm, Baum–Welch, etc., see <a href="math_appendix.html">Math Appendix</a>. Now includes worked examples with your actual parameters (5 states, 32 symbols).</p>
+    <ul>
+      <li>Detailed derivations.</li>
+      <li>Worked example of forward algorithm.</li>
+      <li>References to papers.</li>
+    </ul>
+  </div>
+
+  <div class="step">
+    <div class="step-title">Step 8: Experiment</div>
+    <p>Once you understand the code:</p>
+    <ul>
+      <li>Modify constants (N=# states, K=# clusters, M=# symbols).</li>
+      <li>Change the number of Baum–Welch iterations.</li>
+      <li>Experiment with different initialization in K-means.</li>
+      <li>See how accuracy changes.</li>
+    </ul>
+  </div>
+
+  <h2>Prerequisites</h2>
+  <div class="prereq">
+    <b>Software:</b>
+    <ul>
+      <li><b>C compiler:</b> gcc, clang, or MSVC. On Windows, WSL (Windows Subsystem for Linux) recommended for POSIX compatibility.</li>
+      <li><b>Python (optional):</b> to serve docs locally via `python -m http.server`.</li>
+      <li><b>Git (optional):</b> to clone/manage the repo.</li>
+    </ul>
+  </div>
+
+  <div class="prereq">
+    <b>Knowledge:</b>
+    <ul>
+      <li><b>C basics:</b> arrays, loops, functions, structs. NOT advanced C (no threading, no complex memory management).</li>
+      <li><b>Linear algebra (light):</b> vectors, matrices, distance. Math appendix provides context.</li>
+      <li><b>Statistics (light):</b> probability, expectation. Fundamentals page explains needed concepts.</li>
+    </ul>
+  </div>
+
+  <h2>Quick Command Cheat Sheet</h2>
+  <p>From project root `d:/e2e speech/project/website/assignment 6/HMM_Assignment_5/HMM/`:</p>
+
+  <div style="background:#f5f5f5; padding:10px; border-radius:4px; margin:10px 0; font-family:monospace; overflow-x:auto;">
+    <span style="color:#666"># Compile HMM program</span><br>
+    gcc -o hmm.exe hmm.c -lm<br><br>
+    <span style="color:#666"># Run HMM (trains on train.seq, tests on dev.seq)</span><br>
+    .\hmm.exe<br><br>
+    <span style="color:#666"># Compile K-means (optional, for learning)</span><br>
+    gcc -o kmeans.exe main.c kmeans.c -lm<br>
+    .\kmeans.exe<br><br>
+    <span style="color:#666"># Compile VQ batch (needs WSL/MinGW for POSIX)</span><br>
+    gcc -o vq_batch vq_batch.c -lm<br>
+    ./vq_batch<br><br>
+    <span style="color:#666"># View docs locally</span><br>
+    python -m http.server 8000<br>
+    <span style="color:#999"># then open http://localhost:8000/docs/index.html</span>
+  </div>
+
+  <h2>Expected Outcomes</h2>
+  <p>After completing this guide, you should understand:</p>
+  <ul>
+    <li>How speech recognition uses machine learning (MFCC → features, HMM → model).</li>
+    <li>Why K-means is used (codebook for VQ).</li>
+    <li>What the forward algorithm and Baum–Welch do (mathematically and in code).</li>
+    <li>How to read, compile, and modify the C code.</li>
+    <li>How to experiment with parameters and measure accuracy.</li>
+  </ul>
+
+  <h2>Still Have Questions?</h2>
+  <ul>
+    <li><a href="glossary.html">Glossary</a> for term definitions.</li>
+    <li><a href="fundamentals.html">Fundamentals</a> for conceptual explanations.</li>
+    <li><a href="math_appendix.html">Math Appendix</a> for mathematical derivations.</li>
+    <li>Source code pages for line-by-line annotations.</li>
+  </ul>
+
+  <div class="footer">Ready? Start with <a href="fundamentals.html">Fundamentals</a>!</div>
+</div>
+</body>
+</html>

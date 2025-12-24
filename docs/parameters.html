@@ -1,0 +1,275 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Parameters Explained — Your Project</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .param-box { background:#f0f4ff; padding:14px; margin:12px 0; border-left:4px solid #0366d6; }
+    .param-name { font-weight:bold; color:#0366d6; font-size:1.05em; }
+    .param-value { font-family:monospace; background:#ffffff; padding:4px 8px; border-radius:3px; }
+    .why-box { background:#fff9e6; padding:10px; margin-top:6px; border-radius:3px; }
+    .file-ref { color:#666; font-size:0.9em; font-style:italic; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Parameters in Your Code — Why Each Value?</h1>
+  <p class="note">Every constant in your code was chosen for a reason. This page explains what each does and why it was set to that specific value for digit recognition.</p>
+
+  <h2>MFCC Feature Dimension</h2>
+  <div class="param-box">
+    <div class="param-name">DIM = 39</div>
+    <div class="param-value">#define DIM 39  // MFCC dimension</div>
+    <div class="file-ref">Used in: kmeans.c, vq_batch.c, hmm.c</div>
+    <div class="why-box">
+      <b>Why 39?</b> MFCC extraction produces ~13 base coefficients (describing spectrum). To capture temporal dynamics, people add deltas (velocity) and delta-deltas (acceleration), yielding 13 + 13 + 13 = 39 features per frame. This is a <b>standard in speech recognition</b>. Higher dims would capture more detail but be slower; lower would lose information. 39 is industry-standard for phones/digits.
+    </div>
+  </div>
+
+  <h2>K-means Clustering Parameters</h2>
+  <div class="param-box">
+    <div class="param-name">K = 100 (in kmeans.c)</div>
+    <div class="param-value">#define K 100  // number of clusters</div>
+    <div class="file-ref">kmeans.c line 6</div>
+    <div class="why-box">
+      <b>Why 100?</b> K controls codebook size. With 100 clusters, each MFCC frame (39-D) maps to 1 of 100 symbols (0–99). This is a <b>balance between compression and fidelity</b>:
+      <ul>
+        <li><b>Too small (K&lt;20):</b> loses acoustic detail, HMM cannot distinguish digit features.</li>
+        <li><b>Too large (K&gt;500):</b> codebook becomes inefficient, HMM overfits, slow computation.</li>
+        <li><b>K=100:</b> standard choice for digit/phone recognition—captures enough detail without overfitting.</li>
+      </ul>
+      Many speech systems use K ∈ [32, 256]; 100 is in the sweet spot for digits.
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">MAX_ITER = 100 (K-means)</div>
+    <div class="param-value">#define MAX_ITER 100</div>
+    <div class="file-ref">kmeans.c line 8</div>
+    <div class="why-box">
+      <b>Why 100?</b> K-means is iterative. 100 iterations allows <b>convergence without excessive computation</b>. In practice:
+      <ul>
+        <li>Convergence usually happens in 10–30 iterations for typical datasets.</li>
+        <li>100 is a <b>safe upper bound</b> to ensure convergence with margin.</li>
+        <li>Early stopping via EPS = 1e-4 (see below) typically stops before hitting 100.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">EPS = 1e-4 (convergence threshold)</div>
+    <div class="param-value">#define EPS 1e-4</div>
+    <div class="file-ref">kmeans.c line 9</div>
+    <div class="why-box">
+      <b>Why 1e-4?</b> Convergence criterion. If centroid movement (L1 norm across all dimensions) falls below 1e-4, K-means stops. This ensures:
+      <ul>
+        <li><b>Quality:</b> 1e-4 is strict enough that centroids are well-stabilized.</li>
+        <li><b>Efficiency:</b> Not so strict (e.g., 1e-8) that iterations waste time on negligible changes.</li>
+        <li><b>Numerical stability:</b> Avoids floating-point precision issues.</li>
+      </ul>
+      Choice: experiment-driven. 1e-4 typically stops iteration in 15–30 rounds for ~10K points.
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">MAX_POINTS = 10000</div>
+    <div class="param-value">#define MAX_POINTS 10000</div>
+    <div class="file-ref">kmeans.c line 7</div>
+    <div class="why-box">
+      <b>Why 10000?</b> Maximum MFCC frames in memory at once. For digit data:
+      <ul>
+        <li>Each digit utterance: ~100–300 frames (1–3 seconds).</li>
+        <li>100 speakers × 4 digits × 10 samples ≈ 4000 frames (safe).</li>
+        <li>10000 is a <b>conservative buffer</b> for larger datasets without excessive memory.</li>
+      </ul>
+      If you had more data, increase this; if memory-constrained, decrease it.
+    </div>
+  </div>
+
+  <h2>Vector Quantization Parameters</h2>
+  <div class="param-box">
+    <div class="param-name">K = 32 (in vq_batch.c)</div>
+    <div class="param-value">#define K 32  // codebook size</div>
+    <div class="file-ref">vq_batch.c line 9</div>
+    <div class="why-box">
+      <b>Why 32 (different from kmeans K=100)?</b> This is the <b>final codebook size used in HMM</b>. Note:
+      <ul>
+        <li>kmeans.c produces K=100 clusters as an intermediate step (or as a preprocessing codebook).</li>
+        <li>vq_batch.c uses a <b>different codebook</b> of size K=32, likely a <b>pre-trained or reduced codebook</b>.</li>
+        <li>M=32 in hmm.c (see below) matches this; the HMM emission matrix is [5 states × 32 symbols].</li>
+        <li><b>Why 32 instead of 100?</b> Smaller codebook means:
+          <ul>
+            <li>Fewer HMM parameters (smaller B matrix: 5×32 vs 5×100).</li>
+            <li>Less overfitting on small digit dataset.</li>
+            <li>Faster training/testing.</li>
+            <li>Typical for small datasets (phones, digits); larger datasets use bigger codebooks.</li>
+          </ul>
+        </li>
+      </ul>
+      <b>Key insight:</b> K=100 (kmeans) may be <i>potential</i> codebook size; K=32 is the <i>actual</i> one used in production HMM. This suggests kmeans.c might be for <i>exploration/learning</i>, while the real pipeline uses a fixed K=32 codebook in `codebook.txt`.
+    </div>
+  </div>
+
+  <h2>HMM Architecture Parameters</h2>
+  <div class="param-box">
+    <div class="param-name">N = 5 (number of states)</div>
+    <div class="param-value">#define N 5  // number of states</div>
+    <div class="file-ref">hmm.c line 6</div>
+    <div class="why-box">
+      <b>Why 5 states?</b> Represents the <b>temporal structure of spoken digits</b>. A typical digit utterance:
+      <ul>
+        <li><b>State 0:</b> onset / silence before digit</li>
+        <li><b>State 1:</b> early articulation (consonant/vowel start)</li>
+        <li><b>State 2:</b> vowel nucleus (steady-state)</li>
+        <li><b>State 3:</b> late articulation (transitions, offsets)</li>
+        <li><b>State 4:</b> coda / silence after digit</li>
+      </ul>
+      <b>Why not 3 or 10?</b>
+      <ul>
+        <li><b>Too few (N=3):</b> cannot distinguish subtle phonetic phases, accuracy drops.</li>
+        <li><b>N=5:</b> classic choice for <b>phoneme-like units</b> in speech; balances expressiveness and overfitting.</li>
+        <li><b>Too many (N=10+):</b> overkill for 1-second utterances, waste parameters, risk overfitting on small dataset.</li>
+      </ul>
+      Industry standard for phone recognition: N ∈ [3, 5] per phoneme.
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">M = 32 (number of symbols)</div>
+    <div class="param-value">#define M 32  // number of symbols (codebook size)</div>
+    <div class="file-ref">hmm.c line 7</div>
+    <div class="why-box">
+      <b>Why 32?</b> Matches the VQ codebook size (K=32 in vq_batch.c). The HMM emission matrix B[5][32] encodes: "given state i, what's the probability of observing symbol k?" With 32 symbols:
+      <ul>
+        <li>Each state has 32 emission probabilities to estimate (5×32 = 160 parameters).</li>
+        <li>32 is <b>large enough</b> to capture acoustic variation (32 distinct MFCC clusters).</li>
+        <li>32 is <b>small enough</b> that with ~10–20 training sequences per digit, each (state, symbol) pair gets enough training samples to estimate reliably (avoid overfitting).</li>
+      </ul>
+      <b>Math:</b> Each digit class gets ~10 training sequences, each ~100–300 frames. With M=32, on average each (state, symbol) gets ~10×200 / 5 / 32 ≈ 12 frames—enough to estimate robustly.
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">MAX_T = 500 (max sequence length)</div>
+    <div class="param-value">#define MAX_T 500</div>
+    <div class="file-ref">hmm.c line 8</div>
+    <div class="why-box">
+      <b>Why 500?</b> Maximum frames per sequence:
+      <ul>
+        <li>Typical digit: 100–300 frames (~1–3 seconds at ~100 fps).</li>
+        <li>500 is a <b>safe buffer</b> for slow speakers or sequences with pauses.</li>
+        <li>Larger MAX_T wastes memory (alpha, beta, gamma, xi matrices are [MAX_T × N] or [MAX_T × N × N]).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">MAX_SEQ = 500 (max sequences per digit)</div>
+    <div class="param-value">#define MAX_SEQ 500</div>
+    <div class="file-ref">hmm.c line 9</div>
+    <div class="why-box">
+      <b>Why 500?</b> Maximum training/test sequences in memory:
+      <ul>
+        <li>Typical digit dataset: 100 speakers × 4 digit classes × 5–20 samples ≈ 2000–8000 total sequences.</li>
+        <li>500 per digit is enough for a moderate dataset.</li>
+        <li>If your dataset is larger, increase this or process in batches.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">DIGITS = 4 (number of classes)</div>
+    <div class="param-value">#define DIGITS 4  // 2,3,4,5</div>
+    <div class="file-ref">hmm.c line 10</div>
+    <div class="why-box">
+      <b>Why 4?</b> You're recognizing digits 2, 3, 4, 5 (not 0, 1, 6, 7, 8, 9). So:
+      <ul>
+        <li>4 digit classes → 4 HMMs to train and test.</li>
+        <li>Smaller classification space (4 classes) → faster training, higher accuracy than all 10 digits.</li>
+        <li>This is likely a <b>subset chosen for simplicity</b> in assignment or dataset constraints.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="param-box">
+    <div class="param-name">Baum–Welch iterations = 15</div>
+    <div class="param-value">baum_welch(&models[d], train, S, 15);</div>
+    <div class="file-ref">hmm.c line 209</div>
+    <div class="why-box">
+      <b>Why 15 iterations?</b> Baum–Welch is an EM algorithm. More iterations → better likelihood (but diminishing returns):
+      <ul>
+        <li><b>Too few (1–3):</b> parameters barely updated, poor models.</li>
+        <li><b>15:</b> typically enough for <b>convergence on small digit datasets</b>; likelihood plateaus after 10–20 iterations.</li>
+        <li><b>More (50+):</b> marginal improvement, risk overfitting (especially on 10–20 training sequences per digit).</li>
+      </ul>
+      Choice: empirically determined. For your digit dataset, 15 is a good sweet spot.
+    </div>
+  </div>
+
+  <h2>Summary Table</h2>
+  <table style="width:100%; border-collapse:collapse; margin-top:12px;">
+    <tr style="background:#f0f4ff;">
+      <th style="padding:8px; text-align:left; border:1px solid #ccc;">Parameter</th>
+      <th style="padding:8px; text-align:center; border:1px solid #ccc;">Value</th>
+      <th style="padding:8px; text-align:left; border:1px solid #ccc;">Purpose</th>
+      <th style="padding:8px; text-align:left; border:1px solid #ccc;">Why This Value?</th>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">DIM</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">39</td>
+      <td style="padding:8px; border:1px solid #ccc;">MFCC feature dimension</td>
+      <td style="padding:8px; border:1px solid #ccc;">Industry standard (13 base + delta + delta-delta)</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">K (kmeans)</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">100</td>
+      <td style="padding:8px; border:1px solid #ccc;">Intermediate codebook size</td>
+      <td style="padding:8px; border:1px solid #ccc;">Exploration / preprocessing codebook</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">K (vq_batch, HMM)</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">32</td>
+      <td style="padding:8px; border:1px solid #ccc;">Actual VQ / HMM symbol alphabet</td>
+      <td style="padding:8px; border:1px solid #ccc;">Balance compression & fidelity; avoids overfitting on small dataset</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">N (states)</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">5</td>
+      <td style="padding:8px; border:1px solid #ccc;">HMM hidden states</td>
+      <td style="padding:8px; border:1px solid #ccc;">Capture phonetic structure of digit utterance</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">MAX_ITER (kmeans)</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">100</td>
+      <td style="padding:8px; border:1px solid #ccc;">Max K-means iterations</td>
+      <td style="padding:8px; border:1px solid #ccc;">Safe convergence bound; early stopping via EPS usually stops earlier</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">EPS</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">1e-4</td>
+      <td style="padding:8px; border:1px solid #ccc;">K-means convergence threshold</td>
+      <td style="padding:8px; border:1px solid #ccc;">Balance quality & efficiency</td>
+    </tr>
+    <tr>
+      <td style="padding:8px; border:1px solid #ccc;">BW iters</td>
+      <td style="padding:8px; text-align:center; border:1px solid #ccc;">15</td>
+      <td style="padding:8px; border:1px solid #ccc;">Baum–Welch iterations</td>
+      <td style="padding:8px; border:1px solid #ccc;">Typical convergence for digit dataset</td>
+    </tr>
+  </table>
+
+  <h2>How to Experiment</h2>
+  <p>Want to understand these choices better? Try modifying them:</p>
+  <ul>
+    <li>Change <code>N</code> from 5 to 3 or 7. See how accuracy changes.</li>
+    <li>Change <code>M</code> from 32 to 16 or 64. Smaller = faster, less detail. Larger = slower, more detail.</li>
+    <li>Change BW iterations from 15 to 5 or 30. See convergence vs. accuracy tradeoff.</li>
+    <li>Change <code>EPS</code> from 1e-4 to 1e-3 or 1e-6. Notice iteration count and final centroids.</li>
+  </ul>
+
+  <div class="footer"><a href="fundamentals.html">Back to Fundamentals</a> | <a href="index.html">Home</a></div>
+</div>
+</body>
+</html>

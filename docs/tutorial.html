@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tutorial — HMM Assignment</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Step-by-step Tutorial</h1>
+
+  <h2>Goal</h2>
+  <p class="note">Walk through the full pipeline to go from MFCC frames to trained HMMs and evaluation. You'll learn what each program does, why it matters, and the exact commands to run locally.</p>
+
+  <h2>Prerequisites</h2>
+  <ul>
+    <li><b>Python</b> (for serving docs): optional, e.g. `python --version`.</li>
+    <li><b>C compiler</b>: gcc/clang or Windows MinGW; WSL is recommended on Windows for POSIX compatibility (dirent, mkdir modes).</li>
+    <li><b>Data</b>: `combined.mfcc` and `codebook.txt` are already included in this repo. If you have raw audio, MFCC extraction is required separately (not included).</li>
+  </ul>
+
+  <h2>Project flow (conceptual)</h2>
+  <ol>
+    <li>Collect MFCC frames across audio data — these are floating-point vectors (DIM=39 in code).</li>
+    <li>Run K-means on MFCC frames to produce a codebook (centroids). Each centroid becomes a discrete symbol.</li>
+    <li>Use the codebook to quantize each MFCC frame to the nearest symbol; write symbol sequences per audio file into `hmm/<digit>/(train|dev).seq`.</li>
+    <li>Train a separate discrete HMM per digit using Baum–Welch on the training sequences.</li>
+    <li>Evaluate each dev sequence by scoring it with each HMM using the forward algorithm and pick the highest-scoring model (maximum likelihood classification).</li>
+  </ol>
+
+  <h2>Commands (PowerShell examples)</h2>
+  <p class="note">From `d:/e2e speech/project/website/assignment 6/HMM_Assignment_5/HMM`</p>
+  <h3>1) Build K-means program (if you want to recompute a codebook)</h3>
+  <pre class="code">gcc -o kmeans.exe main.c kmeans.c -lm
+# then run
+.\kmeans.exe
+/* Note: the provided `main.c` prints iteration errors; it does not write a `codebook.txt` by default.
+   You may modify `main.c`/`kmeans.c` to output centroids to a file if you want to create a codebook from scratch. */</pre>
+
+  <h3>2) Build and run VQ batching (maps MFCC files to sequences)</h3>
+  <pre class="code">gcc -o vq_batch.exe vq_batch.c -lm
+# Recommended: run in WSL or MinGW if `dirent.h` is not available on native Windows
+.\vq_batch.exe
+# This reads `codebook.txt` and writes sequence files to `hmm/2/train`, `hmm/2/dev`, etc. (appends to `hmm/<digit>/<split>.seq`).</pre>
+
+  <h3>3) Build and run HMM training/testing</h3>
+  <pre class="code">gcc -o hmm.exe hmm.c -lm
+.\hmm.exe
+# This trains HMMs for digits 2..5 using sequences in `hmm/<digit>/train.seq` and evaluates on `hmm/<digit>/dev.seq`.</pre>
+
+  <h2>Notes about Windows compatibility</h2>
+  <ul>
+    <li>`vq_batch.c` uses POSIX directory APIs (`<dirent.h>` and `mkdir` with mode). These are easiest to run inside WSL (Ubuntu on Windows) or via MinGW/MSYS. WSL example:</li>
+  </ul>
+  <pre class="code"># inside WSL shell (cd to repo path mounted as /mnt/d/...)
+gcc -o vq_batch vq_batch.c -lm
+./vq_batch
+</pre>
+
+  <h2>What to inspect next (learning path)</h2>
+  <ul>
+    <li>Read `docs/main_c.html` and `docs/kmeans_c.html` to understand K-means code line-by-line.</li>
+    <li>Read `docs/vq_batch_c.html` to see how MFCC frames are turned into symbol sequences.</li>
+    <li>Study `docs/hmm_c.html` for the forward algorithm and Baum–Welch reestimation (this is where the HMM math lives).</li>
+  </ul>
+
+  <h2>References and next study steps</h2>
+  <ul>
+    <li>Rabiner, L. R. (1989). A tutorial on Hidden Markov Models and selected applications in speech recognition.</li>
+    <li>J. Hershey, et al. — MFCC feature extraction tutorials.</li>
+  </ul>
+
+  <div class="footer">If you'd like, I can: (a) add an expanded math appendix for Baum–Welch/Forward, (b) modify `main.c` to write codebook.txt, (c) add a step-by-step tutorial converting raw audio → MFCC using a standard tool (e.g. librosa/python).</div>
+</div>
+</body>
+</html>

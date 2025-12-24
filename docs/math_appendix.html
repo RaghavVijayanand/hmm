@@ -1,0 +1,200 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Math Appendix — HMM Assignment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .derivation { background:#f7f7f7; padding:12px; margin:12px 0; border-left:3px solid #666; }
+    .example { background:#fff9e6; padding:12px; margin:12px 0; border-left:3px solid #f59e0b; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Math Appendix</h1>
+  <p class="note">For those interested in the mathematical details. We cover forward algorithm, Baum–Welch, and a worked example.</p>
+
+  <h2>Forward Algorithm (Detailed)</h2>
+  <div class="derivation">
+    <b>Goal:</b> Compute P(O | λ) = probability of observation sequence O under HMM λ.
+    <br><br>
+    <b>Definition:</b> α_t(i) = P(o₁, o₂, ..., o_t, state=i at time t | λ)
+    <br><br>
+    <b>Initialization:</b>
+    <br>
+    α₁(i) = π_i × B_i(o₁)  for i = 1..N
+    <br><br>
+    <b>Recursion:</b>
+    <br>
+    α_t(j) = B_j(o_t) × [ Σ_{i=1}^{N} α_{t-1}(i) × A_{ij} ]
+    <br><br>
+    <b>Termination:</b>
+    <br>
+    P(O | λ) = Σ_{i=1}^{N} α_T(i)
+    <br><br>
+    <b>Complexity:</b> O(N² × T) where N = # states, T = sequence length.
+    <br><br>
+    <b>In code:</b> See `forward()` function in `hmm.c` lines 70–92.
+  </div>
+
+  <h2>Baum–Welch (EM for HMM)</h2>
+  <div class="derivation">
+    <b>Goal:</b> Estimate λ = (A, B, π) that maximizes likelihood P(O | λ).
+    <br><br>
+    <b>Key Quantities:</b>
+    <br>
+    <br>γ_t(i) = P(state=i at time t | O, λ)  [state occupancy]
+    <br>
+    <br>ξ_t(i,j) = P(state=i at t, state=j at t+1 | O, λ)  [transition occupancy]
+    <br><br>
+    <b>Derivation of γ:</b>
+    <br>
+    γ_t(i) = [α_t(i) × β_t(i)] / P(O | λ)
+    <br>
+    where β is backward probability.
+    <br><br>
+    <b>Derivation of ξ:</b>
+    <br>
+    ξ_t(i,j) = [α_t(i) × A_{ij} × B_j(o_{t+1}) × β_{t+1}(j)] / P(O | λ)
+    <br><br>
+    <b>Parameter Re-estimation:</b>
+    <br>
+    A_ij ← Σ_t ξ_t(i,j) / Σ_t Σ_k ξ_t(i,k)
+    <br>
+    B_j(k) ← Σ_{t: o_t=k} γ_t(j) / Σ_t γ_t(j)
+    <br>
+    π_i ← γ_1(i)
+    <br><br>
+    <b>In code:</b> See `baum_welch()` in `hmm.c` lines 96–190.
+  </div>
+
+  <h2>Backward Algorithm</h2>
+  <div class="derivation">
+    <b>Definition:</b> β_t(i) = P(o_{t+1}, o_{t+2}, ..., o_T | state=i at time t, λ)
+    <br><br>
+    <b>Initialization:</b>
+    <br>
+    β_T(i) = 1  for all i
+    <br><br>
+    <b>Recursion (backward):</b>
+    <br>
+    β_t(i) = Σ_j A_{ij} × B_j(o_{t+1}) × β_{t+1}(j)
+    <br><br>
+    <b>In code:</b> Lines 121–133 of `hmm.c`.
+  </div>
+
+  <h2>Worked Example: Forward Algorithm</h2>
+  <div class="example">
+    <b>Scenario (Your Project):</b> 5-state HMM for digit "2", 32-symbol alphabet. Compute P(O = [5, 12, 7, 31, 8]) — a 5-frame observation sequence.
+    <br><br>
+    <b>Note:</b> This is a simplified demonstration. Real HMMs have 32×32 = 1024 emission probabilities and 5×5 = 25 transitions. We show the computation for two states to keep it readable.
+    <br><br>
+    <b>Hypothetical Small Parameters (for illustration):</b>
+    <br>
+    π = [0.8, 0.2, 0.0, 0.0, 0.0]  (likely to start in state 0)
+    <br>
+    A = [[0.6, 0.3, 0.1, 0.0, 0.0],   (state 0: mostly self-loop or transition to 1)
+    <br>
+         [0.0, 0.7, 0.3, 0.0, 0.0],   (state 1: mostly self-loop or to state 2)
+    <br>
+         [0.0, 0.0, 0.7, 0.3, 0.0],   (state 2: mostly self-loop or to state 3)
+    <br>
+         [0.0, 0.0, 0.0, 0.7, 0.3],   (state 3: mostly self-loop or to state 4)
+    <br>
+         [0.0, 0.0, 0.0, 0.0, 1.0]]   (state 4: end state)
+    <br><br>
+    B_0 (emissions from state 0): higher prob for early symbols [5, 12, 7] (typical phoneme onset)
+    <br>
+    B_1, B_2 (emissions from states 1–2): higher for middle symbols (vowel nucleus)
+    <br>
+    B_3, B_4 (emissions from states 3–4): higher for final symbols [31, 8] (offset, coda)
+    <br><br>
+    <b>Forward computation (simplified):</b>
+    <br>
+    <b>t=0 (o_0=5):</b>
+    <br>
+    α_0(0) = π[0] × B[0, 5] = 0.8 × 0.3 = 0.24   (state 0 likely)
+    <br>
+    α_0(1) = π[1] × B[1, 5] = 0.2 × 0.05 = 0.01  (state 1 less likely at onset)
+    <br>
+    [α_0(2), α_0(3), α_0(4) ≈ 0]
+    <br><br>
+    <b>t=1 (o_1=12):</b>
+    <br>
+    α_1(0) = B[0, 12] × (α_0(0)×A[0,0] + α_0(1)×A[1,0]) = 0.28 × (0.24×0.6 + 0.01×0.0) ≈ 0.04
+    <br>
+    α_1(1) = B[1, 12] × (α_0(0)×A[0,1] + α_0(1)×A[1,1]) = 0.25 × (0.24×0.3 + 0.01×0.7) ≈ 0.02
+    <br>
+    [α_1(2), α_1(3), α_1(4) small]
+    <br><br>
+    ... [Continue through t=4, accumulating probabilities through all 5 states] ...
+    <br><br>
+    <b>Termination:</b>
+    <br>
+    P(O) = Σ_{i=0}^{4} α_4(i)  ≈ sum over all final state probabilities
+    <br>
+    log P(O) = log(P(O))  [reported in code for numerical stability]
+    <br><br>
+    <b>Key insight:</b> Forward algorithm efficiently computes probability by <b>only visiting relevant states</b>. The transition matrix A enforces a left-to-right structure (state 0→1→2→3→4), so α_4(0) ≈ 0 (can't return to initial state). This speeds up computation to O(25×5) = O(125) instead of brute-force.
+  </div>
+
+  <h2>K-means Iteration</h2>
+  <div class="derivation">
+    <b>Input:</b> Data X = {x₁, ..., x_n}, K clusters.
+    <br><br>
+    <b>One iteration:</b>
+    <br>
+    1. <b>Assignment:</b> for each point x_i, find nearest centroid c_j:
+    <br>   cluster(i) = argmin_j ||x_i - c_j||²
+    <br><br>
+    2. <b>Update:</b> compute new centroid for each cluster k:
+    <br>   c_k ← (Σ_{i: cluster(i)=k} x_i) / |{i: cluster(i)=k}|
+    <br><br>
+    3. <b>Error:</b> compute total movement:
+    <br>   error = Σ_k Σ_d |c_k^{old}[d] - c_k^{new}[d]|
+    <br><br>
+    <b>Repeat:</b> until error < EPS (e.g., 1e-4).
+    <br><br>
+    <b>In code:</b> `kmeans_iteration()` in `kmeans.c` lines 48–97.
+  </div>
+
+  <h2>Vector Quantization Distance</h2>
+  <div class="derivation">
+    <b>Problem:</b> Given a frame f and codebook C = {c₀, ..., c_{K-1}}, find the nearest codeword.
+    <br><br>
+    <b>Solution:</b>
+    <br>
+    s = argmin_k ||f - c_k||²
+    <br><br>
+    <b>In code:</b> `vq_map()` in `vq_batch.c` lines 48–63.
+  </div>
+
+  <h2>Classification (Maximum Likelihood)</h2>
+  <div class="derivation">
+    <b>Given:</b> test sequence O, K trained HMMs λ₁, ..., λ_K.
+    <br><br>
+    <b>Decision:</b>
+    <br>
+    predicted_class = argmax_k P(O | λ_k)
+    <br>
+    = argmax_k log P(O | λ_k)  [log is monotonic]
+    <br><br>
+    <b>Accuracy:</b>
+    <br>
+    accuracy = (# correct predictions) / (total test examples)
+    <br><br>
+    <b>In code:</b> `main()` testing loop in `hmm.c` lines 214–245.
+  </div>
+
+  <h2>References</h2>
+  <ul>
+    <li>L. R. Rabiner (1989): "A tutorial on Hidden Markov Models and selected applications in speech recognition." <i>Proceedings of the IEEE</i>, 77(2), 257–286.</li>
+    <li>S. Young et al. (2006): <i>The HTK Book</i> (Hidden Markov Model Toolkit). Version 3.4.</li>
+    <li>D. Arthur &amp; S. Vassilvitskii (2007): "k-means++: The advantages of careful seeding." <i>SODA</i>.</li>
+  </ul>
+
+  <div class="footer"><a href="fundamentals.html">Back to Fundamentals</a></div>
+</div>
+</body>
+</html>

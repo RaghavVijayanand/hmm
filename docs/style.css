@@ -1,0 +1,14 @@
+body { font-family: Arial, Helvetica, sans-serif; margin: 24px; background: #f7f7fb; color: #111; }
+.container { max-width: 1100px; margin: auto; }
+h1 { margin-bottom: 8px; }
+.files { margin-bottom: 20px; }
+.file-list a { display:inline-block; margin-right:12px; color:#0366d6; text-decoration:none }
+.file-list a:hover { text-decoration:underline }
+.code-table { width:100%; border-collapse:collapse; margin-top:12px; }
+.code-table td { vertical-align:top; padding:6px; border-bottom:1px solid #e2e8f0; }
+.code { background:#fff; padding:6px 10px; border-radius:4px; font-family: Consolas, 'Courier New', monospace; white-space:pre; }
+.lineno { color:#6b7280; width:56px; text-align:right; padding-right:12px; }
+.explain { padding-left:12px; }
+.nav { margin-bottom:16px; }
+.note { color:#374151; font-size:0.95em }
+.footer { margin-top:24px; color:#6b7280 }

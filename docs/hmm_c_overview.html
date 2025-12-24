@@ -1,0 +1,101 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>hmm.c — Method Overview</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .method { background:#e6f2ff; padding:12px; border-left:4px solid #0366d6; margin:12px 0; }
+    .method-name { font-family:monospace; font-weight:bold; color:#0366d6; }
+    .method-purpose { font-weight:bold; margin:6px 0 0 0; }
+    .method-detail { margin:6px 0 0 0; line-height:1.6; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`hmm.c` — Method Overview</h1>
+  <p class="note">This file implements HMM training (Baum-Welch) and evaluation (Forward algorithm) for digit recognition. Here's what each method does at a high level.</p>
+
+  <h2>Data Structures</h2>
+  <div class="method">
+    <span class="method-name">struct Sequence</span>
+    <p class="method-purpose">Holds one observation sequence.</p>
+    <p class="method-detail"><code>T</code> = sequence length (number of frames). <code>O[MAX_T]</code> = array of observation symbols (0–31, from codebook). Used to represent one speaker's utterance of a digit as a sequence of codebook symbols.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">struct HMM</span>
+    <p class="method-purpose">Holds HMM parameters for one digit.</p>
+    <p class="method-detail"><code>pi[N]</code> = initial state probability (likelihood of starting in each state). <code>A[N][N]</code> = state transition matrix (probability of moving from state i to state j). <code>B[N][M]</code> = emission matrix (probability of observing symbol k in state i). Together, these define one digit's statistical model.</p>
+  </div>
+
+  <h2>Core Methods</h2>
+
+  <div class="method">
+    <span class="method-name">void init_hmm(HMM *hmm)</span>
+    <p class="method-purpose">Initialize an HMM with default parameters before training.</p>
+    <p class="method-detail">Sets up a simple left-to-right topology: states can stay in place (transition to self) or move forward to the next state, each with probability 0.5. All symbols are equally likely initially (uniform B matrix). The model starts deterministically in state 0. This initialization gives the training algorithm a reasonable starting point.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">int load_sequences(const char *file, Sequence *seqs)</span>
+    <p class="method-purpose">Read a file of symbol sequences for training or testing.</p>
+    <p class="method-detail">Reads a text file where each line is one sequence (space-separated integers). Parses each line and stores the symbols in a Sequence struct. Returns the count of sequences loaded. Used to load training or test data from files like `hmm/2/train.seq`.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">double forward(HMM *hmm, Sequence *seq)</span>
+    <p class="method-purpose">Compute the log-probability that the HMM generated a given sequence.</p>
+    <p class="method-detail">Implements the Forward Algorithm: dynamically computes forward probabilities (alpha values) for each time step and state. Starts with the initial state probability weighted by the first symbol's emission. Then for each subsequent frame, combines probabilities from all previous states via transitions. Returns the log of the total probability (sum of final alphas). This is used both for training (Baum-Welch E-step) and for classification (testing).</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">void backward(HMM *hmm, Sequence *seq, double beta[MAX_T][N])</span>
+    <p class="method-purpose">Compute backward probabilities going in reverse through the sequence.</p>
+    <p class="method-detail">Implements the Backward Algorithm: starts at the last frame with beta = 1 (everything is observed). Works backward: for each earlier frame, beta[t][i] sums the contributions of transitioning to each next state j, times that state's emission probability and its beta. The result (beta values) combined with forward probabilities (alpha values) gives the probability of being in each state at each time, given all observations. Only used during Baum-Welch training.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">void baum_welch(HMM *hmm, Sequence *seqs, int S, int iters)</span>
+    <p class="method-purpose">Train the HMM using the Baum-Welch (EM) algorithm.</p>
+    <p class="method-detail">Main training loop that repeats <code>iters</code> times (typically ~20). Each iteration:
+    <ol>
+      <li><b>Forward pass:</b> Compute alpha (forward probabilities) for each sequence.</li>
+      <li><b>Backward pass:</b> Compute beta (backward probabilities) for each sequence.</li>
+      <li><b>E-step:</b> Compute gamma (state probability) and xi (transition probability) using alphas and betas.</li>
+      <li><b>M-step:</b> Re-estimate π, A, and B using expected counts from gamma and xi.</li>
+    </ol>
+    The algorithm iteratively makes the model better at explaining the training data. Each iteration is guaranteed to increase (or maintain) likelihood.</p>
+  </div>
+
+  <div class="method">
+    <span class="method-name">int main()</span>
+    <p class="method-purpose">Train HMMs for digits 2–5, test on held-out data, report accuracy.</p>
+    <p class="method-detail"><b>Training:</b> For each digit, load training sequences from `hmm/<digit>/train.seq`, initialize an HMM, run Baum-Welch for 15 iterations. Store the trained models. <b>Testing:</b> For each digit, load test sequences from `hmm/<digit>/dev.seq`. For each test sequence, compute likelihood under all 4 digit HMMs. Predict the digit with highest likelihood. Count correct predictions and report accuracy as a percentage. This is the complete pipeline: learn 4 models, then classify test samples.</p>
+  </div>
+
+  <h2>Key Algorithms Explained (High Level)</h2>
+
+  <div class="concept">
+    <b>Forward Algorithm:</b> Efficiently computes the total probability of a sequence by combining all possible paths through the HMM. For each frame, it sums contributions from all previous states that could transition to the current state, weighted by their probabilities.
+    <br><br>
+    <b>Backward Algorithm:</b> The "mirror" of forward: computes probabilities of future observations given a current state. Critical for computing the probability of being in a state given the entire sequence (combining past and future info).
+    <br><br>
+    <b>Baum-Welch:</b> An EM algorithm that learns HMM parameters without knowing the true hidden state sequence. It "guesses" the state probabilities (E-step), then uses those guesses to update parameters to better explain the data (M-step). Repeating this always improves the model.
+  </div>
+
+  <h2>Why This Code Works</h2>
+
+  <div class="concept">
+    <b>Initialization:</b> Left-to-right topology makes sense for speech: a digit has a temporal progression (beginning, middle, end). The initialization guides learning.
+    <br><br>
+    <b>Baum-Welch convergence:</b> The algorithm is guaranteed to converge to a local optimum. Each iteration improves likelihood or keeps it the same. In practice, 15–20 iterations is usually enough for this dataset.
+    <br><br>
+    <b>Classification via likelihood:</b> Pick the HMM with highest P(observations | HMM). This is the Bayesian principle: assume all digit HMMs are equally likely a priori, so the posterior is proportional to the likelihood.
+  </div>
+
+  <div class="footer">For mathematical details, see <a href="hmm_baum_welch.html">HMM & Baum-Welch Explained</a>.</div>
+</div>
+</body>
+</html>

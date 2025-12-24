@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>kmeans.h — Annotated</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`kmeans.h` — Annotated</h1>
+  <p class="note">Header file containing shared definitions for the K-means code.</p>
+
+  <table class="code-table">
+    <tr><td class="lineno">1</td><td class="code">#ifndef KMEANS_H</td><td class="explain">Include guard: prevents double inclusion of this header.</td></tr>
+    <tr><td class="lineno">2</td><td class="code">#define KMEANS_H</td><td class="explain">Define the guard macro.</td></tr>
+    <tr><td class="lineno">3</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">4</td><td class="code">#define DIM 39</td><td class="explain">Feature dimension macro used across K-means sources.</td></tr>
+    <tr><td class="lineno">5</td><td class="code">#define K 100</td><td class="explain">Number of clusters — must match implementation's value.</td></tr>
+    <tr><td class="lineno">6</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">7</td><td class="code">typedef struct {</td><td class="explain">`Vector` type definition header; holds one MFCC frame.</td></tr>
+    <tr><td class="lineno">8</td><td class="code">    double x[DIM];</td><td class="explain">Array of `DIM` doubles for features.</td></tr>
+    <tr><td class="lineno">9</td><td class="code">} Vector;</td><td class="explain">End `Vector` type.</td></tr>
+    <tr><td class="lineno">10</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">11</td><td class="code">typedef struct {</td><td class="explain">`Cluster` struct header.</td></tr>
+    <tr><td class="lineno">12</td><td class="code">    Vector centroid;</td><td class="explain">Centroid for cluster.</td></tr>
+    <tr><td class="lineno">13</td><td class="code">    int count;</td><td class="explain">Number of points in cluster.</td></tr>
+    <tr><td class="lineno">14</td><td class="code">} Cluster;</td><td class="explain">End `Cluster` type.</td></tr>
+    <tr><td class="lineno">15</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">16</td><td class="code">// Distance</td><td class="explain">Function declaration for distance routine.</td></tr>
+    <tr><td class="lineno">17</td><td class="code">double squared_distance(Vector a, Vector b);</td><td class="explain">Prototype for the squared-distance function.</td></tr>
+    <tr><td class="lineno">18</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">19</td><td class="code">// Initialization</td><td class="explain">Prototype for cluster initialization routine.</td></tr>
+    <tr><td class="lineno">20</td><td class="code">void initialize_clusters(Vector *data, Cluster *clusters);</td><td class="explain">Initialize centroids from data (declaration).</td></tr>
+    <tr><td class="lineno">21</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">22</td><td class="code">// One iteration</td><td class="explain">Prototype for performing one K-means iteration.</td></tr>
+    <tr><td class="lineno">23</td><td class="code">double kmeans_iteration(Vector *data, int N, Cluster *clusters);</td><td class="explain">Declaration of the iteration function returning `error`.</td></tr>
+    <tr><td class="lineno">24</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">25</td><td class="code">#endif</td><td class="explain">End include guard.</td></tr>
+  </table>
+</div>
+</body>
+</html>

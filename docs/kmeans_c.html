@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>kmeans.c — Annotated</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`kmeans.c` — Annotated</h1>
+  <p class="note">K-means implementation used to build a codebook from MFCC vectors.</p>
+
+  <table class="code-table">
+    <tr><td class="lineno">1</td><td class="code">#include &lt;stdio.h&gt;</td><td class="explain">Include standard I/O functions like `printf`, `fscanf`.</td></tr>
+    <tr><td class="lineno">2</td><td class="code">#include &lt;stdlib.h&gt;</td><td class="explain">Include general utilities like `malloc`, `free`, `exit` (not used here but standard).</td></tr>
+    <tr><td class="lineno">3</td><td class="code">#include &lt;math.h&gt;</td><td class="explain">Include math functions like `fabs` used for error computation.</td></tr>
+    <tr><td class="lineno">4</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">5</td><td class="code">#define DIM 39          // MFCC dimension</td><td class="explain">Macro for feature vector dimension (39 MFCC coefficients).</td></tr>
+    <tr><td class="lineno">6</td><td class="code">#define K 100           // number of clusters</td><td class="explain">Number of clusters (codebook size) used by K-means.</td></tr>
+    <tr><td class="lineno">7</td><td class="code">#define MAX_POINTS 10000</td><td class="explain">Maximum number of data vectors the program expects to handle.</td></tr>
+    <tr><td class="lineno">8</td><td class="code">#define MAX_ITER 100</td><td class="explain">Maximum iterations to apply K-means before stopping.</td></tr>
+    <tr><td class="lineno">9</td><td class="code">#define EPS 1e-4</td><td class="explain">Convergence threshold for early stopping when centroid shifts are small.</td></tr>
+    <tr><td class="lineno">10</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">11</td><td class="code">// ---------- Data structures ----------</td><td class="explain">Comment section header for data type definitions.</td></tr>
+    <tr><td class="lineno">12</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">13</td><td class="code">typedef struct {</td><td class="explain">Start definition of `Vector` which stores one MFCC frame.</td></tr>
+    <tr><td class="lineno">14</td><td class="code">    double x[DIM];</td><td class="explain">An array of `DIM` doubles holding MFCC coefficients.</td></tr>
+    <tr><td class="lineno">15</td><td class="code">} Vector;</td><td class="explain">`Vector` type alias for convenience.</td></tr>
+    <tr><td class="lineno">16</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">17</td><td class="code">typedef struct {</td><td class="explain">Start definition of `Cluster` which stores centroid and counts.</td></tr>
+    <tr><td class="lineno">18</td><td class="code">    Vector centroid;</td><td class="explain">Centroid vector for this cluster.</td></tr>
+    <tr><td class="lineno">19</td><td class="code">    int count;</td><td class="explain">Number of points currently assigned to this cluster.</td></tr>
+    <tr><td class="lineno">20</td><td class="code">} Cluster;</td><td class="explain">Complete `Cluster` type.</td></tr>
+    <tr><td class="lineno">21</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">22</td><td class="code">// ---------- Distance function ----------</td><td class="explain">Header comment for the distance routine.</td></tr>
+    <tr><td class="lineno">23</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">24</td><td class="code">double squared_distance(Vector a, Vector b)</td><td class="explain">Function computes squared Euclidean distance between two vectors.</td></tr>
+    <tr><td class="lineno">25</td><td class="code">{</td><td class="explain">Begin function body.</td></tr>
+    <tr><td class="lineno">26</td><td class="code">    double sum = 0.0;</td><td class="explain">Accumulator for squared differences.</td></tr>
+    <tr><td class="lineno">27</td><td class="code">    for (int i = 0; i &lt; DIM; i++)</td><td class="explain">Loop over dimensions.</td></tr>
+    <tr><td class="lineno">28</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">29</td><td class="code">        double d = a.x[i] - b.x[i];</td><td class="explain">Compute difference for dimension `i`.</td></tr>
+    <tr><td class="lineno">30</td><td class="code">        sum += d * d;</td><td class="explain">Accumulate squared difference.</td></tr>
+    <tr><td class="lineno">31</td><td class="code">    }</td><td class="explain">End loop.</td></tr>
+    <tr><td class="lineno">32</td><td class="code">    return sum;</td><td class="explain">Return squared Euclidean distance (no sqrt for speed).</td></tr>
+    <tr><td class="lineno">33</td><td class="code">}</td><td class="explain">End function.</td></tr>
+    <tr><td class="lineno">34</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">35</td><td class="code">// ---------- Initialize clusters ----------</td><td class="explain">Section to initialize centroids before K-means iterations.</td></tr>
+    <tr><td class="lineno">36</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">37</td><td class="code">void initialize_clusters(Vector *data, Cluster *clusters)</td><td class="explain">Initialize clusters by selecting first `K` points as centroids (simple seeding).</td></tr>
+    <tr><td class="lineno">38</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">39</td><td class="code">    for (int k = 0; k &lt; K; k++)</td><td class="explain">Loop over cluster indices.</td></tr>
+    <tr><td class="lineno">40</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">41</td><td class="code">        clusters[k].centroid = data[k]; // pick first K points</td><td class="explain">Set centroid to the `k`th input vector. Note: assumes at least `K` points.</td></tr>
+    <tr><td class="lineno">42</td><td class="code">        clusters[k].count = 0;</td><td class="explain">Initialize point count to 0; will be updated on assignment.</td></tr>
+    <tr><td class="lineno">43</td><td class="code">    }</td><td class="explain">End loop.</td></tr>
+    <tr><td class="lineno">44</td><td class="code">}</td><td class="explain">End initialization function.</td></tr>
+    <tr><td class="lineno">45</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">46</td><td class="code">// ---------- One K-means iteration ----------</td><td class="explain">One pass of assignment and update steps.</td></tr>
+    <tr><td class="lineno">47</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">48</td><td class="code">double kmeans_iteration(Vector *data, int N, Cluster *clusters)</td><td class="explain">Performs one iteration and returns aggregate centroid change (`error`).</td></tr>
+    <tr><td class="lineno">49</td><td class="code">{</td><td class="explain"></td></tr>
+    <tr><td class="lineno">50</td><td class="code">    Vector sum[K];</td><td class="explain">Temporary accumulators to sum vectors assigned to each cluster.</td></tr>
+    <tr><td class="lineno">51</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">52</td><td class="code">    // Reset accumulators</td><td class="explain">Prepare sums and counts for this iteration.</td></tr>
+    <tr><td class="lineno">53</td><td class="code">    for (int k = 0; k &lt; K; k++)</td><td class="explain">Loop for each cluster to reset counters and sums.</td></tr>
+    <tr><td class="lineno">54</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">55</td><td class="code">        clusters[k].count = 0;</td><td class="explain">Reset count to zero before reassignment.</td></tr>
+    <tr><td class="lineno">56</td><td class="code">        for (int d = 0; d &lt; DIM; d++)</td><td class="explain">Zero each component of the sum accumulator for cluster `k`.</td></tr>
+    <tr><td class="lineno">57</td><td class="code">            sum[k].x[d] = 0.0;</td><td class="explain">Initialize accumulator to 0.0.</td></tr>
+    <tr><td class="lineno">58</td><td class="code">    }</td><td class="explain">End reset loop.</td></tr>
+    <tr><td class="lineno">59</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">60</td><td class="code">    // Assignment step</td><td class="explain">Assign each data point to the nearest centroid.</td></tr>
+    <tr><td class="lineno">61</td><td class="code">    for (int n = 0; n &lt; N; n++)</td><td class="explain">Loop over all data points.</td></tr>
+    <tr><td class="lineno">62</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">63</td><td class="code">        int best = 0;</td><td class="explain">Start with cluster 0 as tentative best for this point.</td></tr>
+    <tr><td class="lineno">64</td><td class="code">        double best_dist = squared_distance(data[n], clusters[0].centroid);</td><td class="explain">Compute distance to the first centroid to set baseline.</td></tr>
+    <tr><td class="lineno">65</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">66</td><td class="code">        for (int k = 1; k &lt; K; k++)</td><td class="explain">Check remaining centroids to find the nearest.</td></tr>
+    <tr><td class="lineno">67</td><td class="code">        {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">68</td><td class="code">            double dist = squared_distance(data[n], clusters[k].centroid);</td><td class="explain">Distance to centroid `k`.</td></tr>
+    <tr><td class="lineno">69</td><td class="code">            if (dist &lt; best_dist)</td><td class="explain">If this centroid is closer, update `best`.</td></tr>
+    <tr><td class="lineno">70</td><td class="code">            {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">71</td><td class="code">                best_dist = dist;</td><td class="explain">Set new best distance.</td></tr>
+    <tr><td class="lineno">72</td><td class="code">                best = k;</td><td class="explain">Remember cluster index as best.</td></tr>
+    <tr><td class="lineno">73</td><td class="code">            }</td><td class="explain"></td></tr>
+    <tr><td class="lineno">74</td><td class="code">        }</td><td class="explain">End centroid scan for point `n`.</td></tr>
+    <tr><td class="lineno">75</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">76</td><td class="code">        clusters[best].count++;</td><td class="explain">Increment the count for the chosen cluster.</td></tr>
+    <tr><td class="lineno">77</td><td class="code">        for (int d = 0; d &lt; DIM; d++)</td><td class="explain">Add the data vector's components to the cluster's sum accumulator.</td></tr>
+    <tr><td class="lineno">78</td><td class="code">            sum[best].x[d] += data[n].x[d];</td><td class="explain">Accumulate per-dimension values for centroid update later.</td></tr>
+    <tr><td class="lineno">79</td><td class="code">    }</td><td class="explain">End assignment loop over points.</td></tr>
+    <tr><td class="lineno">80</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">81</td><td class="code">    // Update step</td><td class="explain">Compute new centroids from sums and counts; compute error metric.</td></tr>
+    <tr><td class="lineno">82</td><td class="code">    double error = 0.0;</td><td class="explain">Accumulator for total centroid movement magnitude.</td></tr>
+    <tr><td class="lineno">83</td><td class="code">    for (int k = 0; k &lt; K; k++)</td><td class="explain">Loop over clusters to update centroids.</td></tr>
+    <tr><td class="lineno">84</td><td class="code">    {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">85</td><td class="code">        if (clusters[k].count == 0)</td><td class="explain">If no points assigned, skip updating this centroid to avoid division by zero.</td></tr>
+    <tr><td class="lineno">86</td><td class="code">            continue;</td><td class="explain">Proceed to next cluster.</td></tr>
+    <tr><td class="lineno">87</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">88</td><td class="code">        for (int d = 0; d &lt; DIM; d++)</td><td class="explain">Per-dimension update: set centroid to mean of assigned points.</td></tr>
+    <tr><td class="lineno">89</td><td class="code">        {</td><td class="explain"></td></tr>
+    <tr><td class="lineno">90</td><td class="code">            double old = clusters[k].centroid.x[d];</td><td class="explain">Remember the old centroid coordinate to compute change.</td></tr>
+    <tr><td class="lineno">91</td><td class="code">            clusters[k].centroid.x[d] = sum[k].x[d] / clusters[k].count;</td><td class="explain">New centroid coordinate is average of all assigned values.</td></tr>
+    <tr><td class="lineno">92</td><td class="code">            error += fabs(old - clusters[k].centroid.x[d]);</td><td class="explain">Accumulate absolute change into `error` for convergence checking.</td></tr>
+    <tr><td class="lineno">93</td><td class="code">        }</td><td class="explain">End per-dimension update.</td></tr>
+    <tr><td class="lineno">94</td><td class="code">    }</td><td class="explain">End clusters loop.</td></tr>
+    <tr><td class="lineno">95</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">96</td><td class="code">    return error;</td><td class="explain">Return aggregate movement so caller can test for convergence.</td></tr>
+    <tr><td class="lineno">97</td><td class="code">}</td><td class="explain">End function.</td></tr>
+  </table>
+</div>
+</body>
+</html>

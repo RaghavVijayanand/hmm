@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Project Overview — HMM Assignment</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Project Overview</h1>
+  <p class="note">This project implements a simple speech recognition pipeline using MFCC features, vector quantization (VQ), K-means clustering, and discrete Hidden Markov Models (HMMs). The code is purposefully compact to illustrate the core algorithms.</p>
+
+  <h2>High-level flow</h2>
+  <ul>
+    <li><b>Feature extraction (MFCC):</b> audio is converted to MFCC vectors (not included in code). The repository contains `combined.mfcc` which lists MFCC frames.</li>
+    <li><b>K-means / codebook:</b> cluster MFCC frames into a codebook of vectors (K-means). Code in `kmeans.c` / `main.c` demonstrates this step.</li>
+    <li><b>Vector Quantization (VQ):</b> map each MFCC frame to nearest codebook index to produce discrete symbol sequences. `vq_batch.c` does this using `codebook.txt`.</li>
+    <li><b>HMM training & testing:</b> train discrete HMMs per class using Baum–Welch (`hmm.c`) and evaluate with the forward algorithm.</li>
+  </ul>
+
+  <h2>Files of interest</h2>
+  <ul>
+    <li>`kmeans.c`, `kmeans.h` — K-means implementation.</li>
+    <li>`main.c` — small driver that reads `combined.mfcc` and runs K-means.</li>
+    <li>`vq_batch.c` — maps MFCC files to symbol sequences using `codebook.txt` and writes `hmm/<class>/(train|dev).seq` files.</li>
+    <li>`hmm.c`, `hmm.h` — discrete HMM implementation: init, Baum–Welch, forward, training & test runner.</li>
+    <li>`codebook.txt`, `combined.mfcc` — data files (codebook may be precomputed).</li>
+  </ul>
+
+  <h2>Who this overview is for</h2>
+  <p class="note">If you're new to the topic, start with the <a href="tutorial.html">Step-by-step Tutorial</a>. It walks through from prerequisites to running each program and explains how the pieces fit together, mathematically and practically.</p>
+
+  <div class="footer">Want more depth? The tutorial includes references and optional next steps.</div>
+</div>
+</body>
+</html>

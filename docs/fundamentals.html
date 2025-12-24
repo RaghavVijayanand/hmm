@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fundamentals — HMM Assignment</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .concept { background:#f0f4ff; padding:12px; border-left:4px solid #0366d6; margin:12px 0; }
+    .equation { background:#f7f7f7; padding:8px; font-family:monospace; margin:6px 0; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>Fundamentals — From Zero to HMM</h1>
+  <p class="note">If you're new to speech recognition, machine learning, or just this project, this page explains the core ideas without assuming prior knowledge.</p>
+
+  <h2>What is this project trying to do?</h2>
+  <p>The project tries to <b>recognize spoken digits</b> (2, 3, 4, 5) using machine learning. The pipeline:</p>
+  <ol>
+    <li>Record audio and extract features (MFCC).</li>
+    <li>Convert those continuous features into discrete symbols (VQ).</li>
+    <li>Learn statistical models of sequences (HMM).</li>
+    <li>Given a new audio sample, pick which digit model it most likely belongs to.</li>
+  </ol>
+
+  <h2>Part 1: Features (MFCC)</h2>
+  <div class="concept">
+    <b>What is MFCC?</b> Mel-Frequency Cepstral Coefficients. It's a way to extract features from audio that capture how humans perceive sound. Instead of raw audio waveform (which has ~16000 samples per second), MFCC gives you ~100 frames per second, each frame is a vector of numbers describing the spectrum at that moment.
+  </div>
+  <p class="note"><b>In this project:</b> We assume MFCC extraction is already done. The file `combined.mfcc` contains MFCC vectors, one per line. <b>Each line has exactly 39 numbers</b> (defined as <code>DIM=39</code> in kmeans.c and vq_batch.c). <br><br><b>Why 39?</b> Standard MFCC: 13 base coefficients + 13 delta (velocity) + 13 delta-delta (acceleration) = 39. This is industry-standard for speech recognition. See <a href="parameters.html">Parameters Explained</a> for the reasoning.</p>
+
+  <h2>Part 2: Codebook via K-means</h2>
+  <div class="concept">
+    <b>What is clustering?</b> Clustering groups similar things together. Imagine 1000 students — you might group them by height. K-means is an algorithm that groups data points into K clusters by repeatedly:
+    <ol>
+      <li>Assigning each point to the nearest cluster center (centroid).</li>
+      <li>Moving each center to the mean of points assigned to it.</li>
+      <li>Repeating until centers don't move much.</li>
+    </ol>
+  </div>
+
+  <div class="concept">
+    <b>Why K-means here?</b> MFCC is continuous (39-dimensional vectors). HMMs work best with discrete symbols. So we build a <b>codebook</b>: K=100 representative MFCC vectors chosen by K-means. Each MFCC frame can then be mapped to the index (0–99) of its nearest codebook entry. This happens in two steps:
+    <ol>
+      <li><b>K-means produces K=100 clusters</b> (in kmeans.c) as a learning/exploration step.</li>
+      <li><b>Final codebook uses K=32 symbols</b> (in vq_batch.c and hmm.c) for actual HMM training. This is smaller to avoid overfitting on the small digit dataset.</li>
+    </ol>
+  </div>
+
+  <div class="concept">
+    <b>In the code:</b> `kmeans.c` implements K-means with K=100. The function `squared_distance()` measures how far two 39-D MFCC vectors are. `kmeans_iteration()` does one round of assignment + update. Early stopping threshold is EPS=1e-4. See <a href="parameters.html">Parameters</a> for why K=100 vs K=32.
+  </div>
+
+  <h2>Part 3: Discretization via VQ</h2>
+  <div class="concept">
+    <b>What is Vector Quantization (VQ)?</b> VQ is the process of replacing a continuous value with the nearest discrete symbol. In speech, we have an MFCC frame (39-D vector) and we ask: which of the K=32 codebook vectors is closest? Answer: symbol index 0–31.
+  </div>
+
+  <div class="equation">
+  For frame f (39-D), find k such that ||f - codebook[k]|| is minimum. Replace f with symbol k ∈ {0...31}.
+  </div>
+
+  <div class="concept">
+    <b>In the code:</b> `vq_batch.c` loads the codebook from `codebook.txt` (K=32 vectors), then for each MFCC file in `hmm/<digit>/` folders, maps frames to symbols using `vq_map()`. The result is a sequence of symbols stored as integer sequences in `train.seq` and `dev.seq` files. Example: `5 12 7 31 5 8 ...` means frame 1 → symbol 5, frame 2 → symbol 12, etc. <b>Note:</b> The VQ codebook uses K=32, not the K=100 from kmeans.c. See <a href="parameters.html">Parameters</a> for why.
+  </div>
+
+  <h2>Part 4: Sequences and HMMs</h2>
+  <div class="concept">
+    <b>What is a sequence?</b> A sequence is a list of symbols in order. For audio of digit "2", after VQ we get something like `[7, 12, 5, 31, 8, 12, 15, ...]` where each number is a codebook index (0–31, since K=32). Different audio samples of "2" give different sequences, but they share statistical patterns. Training data for digit "2" is stored in `hmm/2/train.seq`; test data in `hmm/2/dev.seq`. Same for digits 3, 4, 5.
+  </div>
+
+  <div class="concept">
+    <b>What is a Hidden Markov Model (HMM)?</b> An HMM is a probabilistic model for sequences. It has:
+    <ul>
+      <li><b>States:</b> N=5 hidden states (representing different phases of speaking a digit: onset, early articulation, nucleus, late articulation, coda).</li>
+      <li><b>Transition matrix A:</b> A[5×5] — probability of moving from state i to state j.</li>
+      <li><b>Emission matrix B:</b> B[5×32] — probability of emitting symbol k given you're in state i. (5 states × 32 symbols)</li>
+      <li><b>Initial dist π:</b> π[5] — probability of starting in state i.</li>
+    </ul>
+    <br>
+    <b>Key idea:</b> states are hidden (you don't know which state produced a symbol), but symbols are observed. The model explains the sequence by assuming there's a sequence of hidden states that generated the observed symbols.
+  </div>
+
+  <div class="equation">
+  HMM = { A[N×N], B[N×M], π[N] }
+  <br>
+  In your code: N = 5 states, M = 32 symbols
+  <br>
+  So: A[5×5], B[5×32], π[5]
+  </div>
+
+  <h2>Part 5: Training and Evaluation</h2>
+  <div class="concept">
+    <b>Training (Baum–Welch):</b> Given a sequence of symbols, estimate the HMM parameters A, B, π. Baum–Welch is an EM algorithm that runs for 15 iterations (hardcoded in hmm.c main), where each iteration:
+    <ol>
+      <li>Computes forward probabilities (how likely to reach each state at each time).</li>
+      <li>Computes backward probabilities (how likely the future given current state).</li>
+      <li>Combines them to estimate expected state occupancy and transitions.</li>
+      <li>Updates A, B, π to match the estimated expectations.</li>
+    </ol>
+    After 15 iterations, the HMM parameters are learned and saved. See <a href="parameters.html">Parameters</a> for why 15 is chosen.
+  </div>
+
+  <div class="concept">
+    <b>Evaluation (Forward Algorithm):</b> Given a test sequence and an HMM, compute the probability that the HMM generated the sequence. Higher probability = stronger match. In the code (hmm.c), we compute log-probability of each test sequence under each of the 4 digit HMMs (digit 2, 3, 4, 5) and pick the highest-scoring one.
+  </div>
+
+  <div class="equation">
+  For a sequence O = [o_1, o_2, ..., o_T] where each o_t ∈ {0...31} (32 symbols):
+  <br>
+  P(O | HMM) is computed using the forward algorithm.
+  <br>
+  Classification: argmax_d P(O | HMM_d)  where d ∈ {2, 3, 4, 5}
+  </div>
+
+  <h2>Putting It All Together</h2>
+  <ol>
+    <li><b>Setup:</b> Get MFCC data in `combined.mfcc` (39-D vectors, one per line).</li>
+    <li><b>Codebook (optional learning):</b> Run `main.c` / K-means on MFCC frames to explore clustering. Produces intermediate codebook. In practice, a fixed K=32 codebook is used in `codebook.txt`.</li>
+    <li><b>VQ:</b> Run `vq_batch.c` to convert MFCC files in `hmm/<digit>/` folders to symbol sequences (mapping to K=32 codebook). Output: `hmm/<digit>/train.seq` and `hmm/<digit>/dev.seq` containing discrete symbol sequences.</li>
+    <li><b>Training:</b> For each digit class (2, 3, 4, 5), train an HMM (5 states, 32 symbols) using Baum–Welch (15 iterations) on training sequences in `hmm/<digit>/train.seq`.</li>
+    <li><b>Testing:</b> For each dev sequence in `hmm/<digit>/dev.seq`, score it under all 4 digit HMMs using forward algorithm. Pick the max. Check if predicted digit = true digit.</li>
+    <li><b>Accuracy:</b> Report % correct on dev set.</li>
+  </ol>
+
+  <h2>Key Equations (Simplified)</h2>
+  <div class="equation">
+  <b>Forward:</b> α_t(i) = P(o_1...o_t and in state i at time t)
+  <br>
+  Recursion: α_t(j) = [Σ_i α_{t-1}(i) A[i,j]] × B[j, o_t]
+  <br>
+  P(O) = Σ_i α_T(i)
+  </div>
+
+  <div class="equation">
+  <b>Baum–Welch:</b> Iteratively estimate γ (state occupancy) and ξ (transitions), then:
+  <br>
+  A[i,j] ← (Σ_t ξ_t(i,j)) / (Σ_t γ_t(i))
+  <br>
+  B[i,k] ← (Σ_t γ_t(i) × [o_t==k]) / (Σ_t γ_t(i))
+  <br>
+  π[i] ← γ_0(i)
+  </div>
+
+  <h2>Next Steps</h2>
+  <ul>
+    <li><a href="parameters.html"><b>Parameters Explained</b></a> — Understand why each constant (DIM=39, N=5, K=32, M=32, iterations=15, etc.) was chosen for your digit recognition task.</li>
+    <li><a href="tutorial.html">Step-by-step Tutorial</a> — Exact commands to run the pipeline.</li>
+    <li><a href="overview.html">Project Overview</a> — File descriptions and data flow.</li>
+    <li><a href="glossary.html">Glossary</a> — Unfamiliar terms explained.</li>
+    <li><a href="math_appendix.html">Math Appendix</a> — Detailed derivations and worked examples with your actual parameters (5 states, 32 symbols).</li>
+    <li>Read source code: <a href="kmeans_c.html">kmeans.c</a>, <a href="vq_batch_c.html">vq_batch.c</a>, <a href="hmm_c.html">hmm.c</a> with line-by-line annotations.</li>
+  </ul>
+
+  <div class="footer">This page covers the conceptual high level. Code details are in line-by-line annotated source pages.</div>
+</div>
+</body>
+</html>

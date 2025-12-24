@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>hmm.h — Annotated</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`hmm.h` — Annotated</h1>
+  <p class="note">Header file with constants and type declarations for the HMM code.</p>
+
+  <table class="code-table">
+    <tr><td class="lineno">1</td><td class="code">#ifndef HMM_H</td><td class="explain">Include guard start to avoid multiple inclusion.</td></tr>
+    <tr><td class="lineno">2</td><td class="code">#define HMM_H</td><td class="explain">Define guard macro.</td></tr>
+    <tr><td class="lineno">3</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">4</td><td class="code">#define N 5          // states</td><td class="explain">Number of states used by HMM implementation.</td></tr>
+    <tr><td class="lineno">5</td><td class="code">#define M 32         // symbols (codebook size)</td><td class="explain">Observation alphabet size.</td></tr>
+    <tr><td class="lineno">6</td><td class="code">#define MAX_T 500</td><td class="explain">Maximum sequence length.</td></tr>
+    <tr><td class="lineno">7</td><td class="code">#define MAX_SEQ 500</td><td class="explain">Maximum number of sequences.</td></tr>
+    <tr><td class="lineno">8</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">9</td><td class="code">typedef struct {</td><td class="explain">Sequence struct definition (same as in `hmm.c`).</td></tr>
+    <tr><td class="lineno">10</td><td class="code">    int T;</td><td class="explain">Sequence length.</td></tr>
+    <tr><td class="lineno">11</td><td class="code">    int O[MAX_T];</td><td class="explain">Observation symbols per time frame.</td></tr>
+    <tr><td class="lineno">12</td><td class="code">} Sequence;</td><td class="explain"></td></tr>
+    <tr><td class="lineno">13</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">14</td><td class="code">typedef struct {</td><td class="explain">HMM parameter struct declaration.</td></tr>
+    <tr><td class="lineno">15</td><td class="code">    double A[N][N];</td><td class="explain">Transition matrix.</td></tr>
+    <tr><td class="lineno">16</td><td class="code">    double B[N][M];</td><td class="explain">Observation probabilities.</td></tr>
+    <tr><td class="lineno">17</td><td class="code">    double pi[N];</td><td class="explain">Initial state distribution.</td></tr>
+    <tr><td class="lineno">18</td><td class="code">} HMM;</td><td class="explain"></td></tr>
+    <tr><td class="lineno">19</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">20</td><td class="code">void init_hmm(HMM *hmm);</td><td class="explain">Prototype to initialize an HMM's parameters.</td></tr>
+    <tr><td class="lineno">21</td><td class="code">void baum_welch(HMM *hmm, Sequence *seqs, int n_seq, int iters);</td><td class="explain">Prototype for Baum-Welch trainer.</td></tr>
+    <tr><td class="lineno">22</td><td class="code">double forward(HMM *hmm, Sequence *seq);</td><td class="explain">Prototype for forward algorithm returning log-probability.</td></tr>
+    <tr><td class="lineno">23</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">24</td><td class="code">#endif</td><td class="explain">End include guard.</td></tr>
+  </table>
+</div>
+</body>
+</html>

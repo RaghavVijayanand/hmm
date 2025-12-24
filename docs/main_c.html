@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>main.c — Annotated</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`main.c` — Annotated</h1>
+  <p class="note">This small `main.c` demonstrates reading MFCC vectors and running a simple K-means loop. Each code line is explained on the right.</p>
+
+  <table class="code-table">
+    <tr><td class="lineno">1</td><td class="code">// ---------- Main ----------</td><td class="explain">Section comment marking this file's main program area.</td></tr>
+    <tr><td class="lineno">2</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">3</td><td class="code">int main()</td><td class="explain">Program entry point — the function called when the program starts.</td></tr>
+    <tr><td class="lineno">4</td><td class="code">{</td><td class="explain">Begin body of `main`.</td></tr>
+    <tr><td class="lineno">5</td><td class="code">    Vector data[MAX_POINTS];</td><td class="explain">Declare an array `data` of MFCC vectors. `Vector` and `MAX_POINTS` come from `kmeans.h`.</td></tr>
+    <tr><td class="lineno">6</td><td class="code">    Cluster clusters[K];</td><td class="explain">Declare array of `K` clusters used by K-means. `Cluster` is defined in `kmeans.h`.</td></tr>
+    <tr><td class="lineno">7</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">8</td><td class="code">    int N = 0;</td><td class="explain">`N` will count how many data points were read from file.</td></tr>
+    <tr><td class="lineno">9</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">10</td><td class="code">    // Example: read MFCC vectors from file</td><td class="explain">Comment describing the following file read logic.</td></tr>
+    <tr><td class="lineno">11</td><td class="code">    FILE *fp = fopen("combined.mfcc", "r");</td><td class="explain">Open `combined.mfcc` for reading. Returns `NULL` on failure.</td></tr>
+    <tr><td class="lineno">12</td><td class="code">    if (!fp)</td><td class="explain">Check whether `fopen` failed.</td></tr>
+    <tr><td class="lineno">13</td><td class="code">    {</td><td class="explain">Start `if` block.</td></tr>
+    <tr><td class="lineno">14</td><td class="code">        printf("Error opening file\n");</td><td class="explain">Print error message to stdout if file couldn't be opened.</td></tr>
+    <tr><td class="lineno">15</td><td class="code">        return 1;</td><td class="explain">Exit program with non-zero status to indicate failure.</td></tr>
+    <tr><td class="lineno">16</td><td class="code">    }</td><td class="explain">End `if` block.</td></tr>
+    <tr><td class="lineno">17</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">18</td><td class="code">    while (N &lt; MAX_POINTS)</td><td class="explain">Loop reading points until the buffer limit (`MAX_POINTS`) is reached.</td></tr>
+    <tr><td class="lineno">19</td><td class="code">    {</td><td class="explain">Begin `while` body.</td></tr>
+    <tr><td class="lineno">20</td><td class="code">        for (int d = 0; d &lt; DIM; d++)</td><td class="explain">Inner loop to read each dimension of a vector (`DIM` from header).</td></tr>
+    <tr><td class="lineno">21</td><td class="code">        {</td><td class="explain">Start `for` body.</td></tr>
+    <tr><td class="lineno">22</td><td class="code">            if (fscanf(fp, "%lf", &data[N].x[d]) != 1)</td><td class="explain">Read a double from file into the `d`th component of `data[N]`. If EOF or parse error occurs, `fscanf` returns a value != 1.</td></tr>
+    <tr><td class="lineno">23</td><td class="code">            {</td><td class="explain">Begin error/EOF handling block.</td></tr>
+    <tr><td class="lineno">24</td><td class="code">                fclose(fp);</td><td class="explain">Close file before exiting the read loop to free resources.</td></tr>
+    <tr><td class="lineno">25</td><td class="code">                goto done;</td><td class="explain">Jump to `done` label — a simple way to break out of nested loops when EOF encountered.</td></tr>
+    <tr><td class="lineno">26</td><td class="code">            }</td><td class="explain">End EOF handling block.</td></tr>
+    <tr><td class="lineno">27</td><td class="code">        }</td><td class="explain">End inner `for` loop (dimension loop).</td></tr>
+    <tr><td class="lineno">28</td><td class="code">        N++;</td><td class="explain">Increment count of successfully read vectors.</td></tr>
+    <tr><td class="lineno">29</td><td class="code">    }</td><td class="explain">End `while` loop.</td></tr>
+    <tr><td class="lineno">30</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">31</td><td class="code">done:</td><td class="explain">Label targeted by `goto` to centralize cleanup and exit path.</td></tr>
+    <tr><td class="lineno">32</td><td class="code">    fclose(fp);</td><td class="explain">Ensure file closed (if not already closed by EOF branch).</td></tr>
+    <tr><td class="lineno">33</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">34</td><td class="code">    // Initialize clusters</td><td class="explain">Comment describing next step: cluster initialization.</td></tr>
+    <tr><td class="lineno">35</td><td class="code">    initialize_clusters(data, clusters);</td><td class="explain">Call function to initialize cluster centroids (from `kmeans.c`).</td></tr>
+    <tr><td class="lineno">36</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">37</td><td class="code">    // Run K-means</td><td class="explain">Comment marking the iterative K-means loop.</td></tr>
+    <tr><td class="lineno">38</td><td class="code">    for (int iter = 0; iter &lt; MAX_ITER; iter++)</td><td class="explain">Repeat up to `MAX_ITER` iterations or until convergence.</td></tr>
+    <tr><td class="lineno">39</td><td class="code">    {</td><td class="explain">Start loop body.</td></tr>
+    <tr><td class="lineno">40</td><td class="code">        double err = kmeans_iteration(data, N, clusters);</td><td class="explain">Run one K-means iteration; returns the change/error used for convergence check.</td></tr>
+    <tr><td class="lineno">41</td><td class="code">        printf("Iteration %d, error = %f\n", iter + 1, err);</td><td class="explain">Print iteration number and error for monitoring progress.</td></tr>
+    <tr><td class="lineno">42</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">43</td><td class="code">        if (err &lt; EPS)</td><td class="explain">If change is below threshold `EPS`, consider algorithm converged.</td></tr>
+    <tr><td class="lineno">44</td><td class="code">            break;</td><td class="explain">Stop iterating early on convergence.</td></tr>
+    <tr><td class="lineno">45</td><td class="code">    }</td><td class="explain">End K-means iteration loop.</td></tr>
+    <tr><td class="lineno">46</td><td class="code"> </td><td class="explain"></td></tr>
+    <tr><td class="lineno">47</td><td class="code">    printf("K-means finished.\n");</td><td class="explain">Inform the user that K-means completed.</td></tr>
+    <tr><td class="lineno">48</td><td class="code">    return 0;</td><td class="explain">Return success exit status to the OS.</td></tr>
+    <tr><td class="lineno">49</td><td class="code">}</td><td class="explain">End of `main` function.</td></tr>
+  </table>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>main.c (K-means Driver) — Method Overview</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .method { background:#e6f2ff; padding:12px; border-left:4px solid #0366d6; margin:12px 0; }
+    .method-name { font-family:monospace; font-weight:bold; color:#0366d6; }
+    .method-purpose { font-weight:bold; margin:6px 0 0 0; }
+    .method-detail { margin:6px 0 0 0; line-height:1.6; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav"><a href="index.html">◀ Back</a></div>
+  <h1>`main.c` (K-means Driver) — Method Overview</h1>
+  <p class="note">This file is a simple driver that orchestrates K-means clustering. It reads MFCC vectors, initializes clusters, and runs the iteration loop until convergence.</p>
+
+  <h2>Single Method</h2>
+
+  <div class="method">
+    <span class="method-name">int main()</span>
+    <p class="method-purpose">Read MFCC data, run K-means clustering, produce a codebook.</p>
+    <p class="method-detail">
+      <b>Step 1 (Data Loading):</b> Opens `combined.mfcc` and reads all MFCC vectors (39 doubles per vector) into the `data` array. Continues until EOF or buffer limit. Reports how many vectors were loaded.
+      <br><br>
+      <b>Step 2 (Initialization):</b> Calls `initialize_clusters()` from kmeans.c to set the first K points as initial centroids.
+      <br><br>
+      <b>Step 3 (K-means Loop):</b> Runs up to MAX_ITER (100) iterations:
+      <ul>
+        <li>Calls `kmeans_iteration()` which assigns points to nearest centroids and updates centroids.</li>
+        <li>Prints iteration number and centroid movement (error) for monitoring progress.</li>
+        <li>If error is below threshold (EPS = 1e-4), the algorithm has converged—break early.</li>
+        <li>Otherwise, continue to next iteration.</li>
+      </ul>
+      <br>
+      <b>Step 4 (Completion):</b> Print completion message and exit with success code.
+    </p>
+  </div>
+
+  <h2>Data Flow</h2>
+
+  <div class="concept">
+    <b>Input:</b> `combined.mfcc` — file with ~10,000 MFCC vectors (each 39 dimensions, one per line).
+    <br><br>
+    <b>Process:</b> K-means iteratively clusters these vectors into 100 groups. Each iteration improves the centroid positions.
+    <br><br>
+    <b>Output:</b> 100 cluster centroids (printed to `codebook.txt` via a separate script or manual extraction). These become the "reference points" for quantizing future MFCC vectors.
+  </div>
+
+  <h2>Why This Driver Exists</h2>
+
+  <div class="concept">
+    <b>Separation of concerns:</b> The K-means algorithm (kmeans.c) is generic—it can cluster any vectors. The main.c driver handles the specific task: loading speech data, configuring parameters, orchestrating the pipeline.
+    <br><br>
+    <b>Monitoring:</b> Printing error at each iteration lets you see convergence happen in real-time. If error drops quickly, K-means is working well. If stuck, you might adjust K, initialization, or data.
+    <br><br>
+    <b>Scalability:</b> This simple loop reads all data into memory. For very large datasets, you'd stream or batch. For this project's size (~10k vectors), it's fine.
+  </div>
+
+  <h2>Practical Notes</h2>
+
+  <div class="concept">
+    <b>Convergence:</b> K-means is guaranteed to converge (centroids stop moving). Usually takes 20–50 iterations for speech data at K=100.
+    <br><br>
+    <b>Output capture:</b> The code doesn't explicitly save centroids to a file here. Typically, after K-means finishes, you'd extract the cluster centroids and write them to `codebook.txt` manually or with an additional function. Or, modify main.c to add that save step.
+    <br><br>
+    <b>K=100 choice:</b> The project uses K=100 for building the codebook, but later uses K=32 for HMM observation (see vq_batch.c). The 100-cluster version might be for exploration; the 32-cluster codebook is the final one used in training.
+  </div>
+
+  <div class="footer">For method details, see <a href="kmeans_c_overview.html">kmeans.c overview</a>.</div>
+</div>
+</body>
+</html>
